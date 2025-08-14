@@ -1,3 +1,4 @@
+// src/services/api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 class ApiService {
@@ -168,6 +169,13 @@ class ApiService {
     });
   }
 
+  // New method to cancel a PTW
+  cancelPtw(taskId) {
+    return this.request(`/tasks/${taskId}/cancel-ptw`, {
+      method: 'PUT'
+    });
+  }
+  
   // New method to fetch all authorized PTWs
   getAuthorizedPTWs() {
     return this.request('/ptw-authorizations');

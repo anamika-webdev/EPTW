@@ -1,6 +1,7 @@
+// src/utils/constants.js
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3
 };
@@ -19,6 +20,7 @@ export const TASK_STATUS = {
   COMPLETED: 'completed',
   PTW_INITIATED: 'ptw_initiated', // Added new status for PTW
   PTW_SUBMITTED: 'ptw_submitted', // Added new status for PTW
+  PTW_CANCELLED: 'ptw_cancelled'
 };
 
 // Task Status Labels
@@ -28,6 +30,7 @@ export const TASK_STATUS_LABELS = {
   [TASK_STATUS.COMPLETED]: 'Completed',
   [TASK_STATUS.PTW_INITIATED]: 'PTW Initiated',
   [TASK_STATUS.PTW_SUBMITTED]: 'PTW Submitted',
+  [TASK_STATUS.PTW_CANCELLED]: 'PTW Cancelled'
 };
 
 // Task Status Colors
@@ -56,6 +59,11 @@ export const TASK_STATUS_COLORS = {
     bg: 'bg-purple-100',
     text: 'text-purple-800',
     border: 'border-purple-500'
+  },
+  [TASK_STATUS.PTW_CANCELLED]: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-500'
   }
 };
 
