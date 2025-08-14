@@ -152,6 +152,27 @@ class ApiService {
     });
   }
 
+  // New method for PTW form submission
+  updatePtwForm(taskId, formData) {
+    return this.request(`/tasks/${taskId}/ptw-form`, {
+      method: 'PUT',
+      body: formData
+    });
+  }
+
+  // New method for supervisor authorization
+  authorizePtw(taskId, data) {
+    return this.request(`/tasks/${taskId}/authorize`, {
+      method: 'PUT',
+      body: data
+    });
+  }
+
+  // New method to fetch all authorized PTWs
+  getAuthorizedPTWs() {
+    return this.request('/ptw-authorizations');
+  }
+
   deleteTask(id) {
     return this.request(`/tasks/${id}`, {
       method: 'DELETE'

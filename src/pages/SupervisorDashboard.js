@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileDropdown } from '../components/ProfileDropdown';
 import api from '../services/api';
 import PTWFormModal from '../components/PTWFormModal';
 import PTWFinalAuthorizationModal from '../components/PTWFinalAuthorizationModal';
 import TaskAssignmentForm from '../components/TaskAssignmentForm';
+// Removed unused import: import { TASK_STATUS } from '../utils/constants';
 
 const SupervisorDashboard = () => {
   const { user } = useAuth();
@@ -17,25 +18,7 @@ const SupervisorDashboard = () => {
   const [showPTWForm, setShowPTWForm] = useState(false);
   const [selectedWorkerForPTW, setSelectedWorkerForPTW] = useState(null);
   const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
-
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadWorkers(),
-        loadSites(),
-        loadTasks()
-      ]);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [notifications, setNotifications] = useState(0);
 
   const loadWorkers = async () => {
     try {
@@ -64,12 +47,42 @@ const SupervisorDashboard = () => {
     }
   };
 
-  const handleAssignTask = async (taskData) => {
+  const loadNotifications = async () => {
+    try {
+      const data = await api.getActiveTasksCount(user.user_id);
+      setNotifications(data.count);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      setNotifications(0);
+    }
+  };
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadWorkers(),
+        loadSites(),
+        loadTasks()
+      ]);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user, loadData]);
+
+  const handleCreateTask = async (taskData) => {
     try {
       await api.createTask({
         supervisor_id: user.user_id,
         ...taskData,
-        status: 'active'
       });
       loadData();
     } catch (error) {
@@ -98,10 +111,7 @@ const SupervisorDashboard = () => {
   
   const handleAuthorizePTW = async (taskId, authorizationData) => {
     try {
-      const formData = new FormData();
-      formData.append('ptw_authorization_data', JSON.stringify(authorizationData));
-      formData.append('action', 'authorize_ptw');
-      await api.updateTask(taskId, formData);
+      await api.authorizePtw(taskId, authorizationData);
       loadData();
       setPtwToAuthorize(null);
     } catch (error) {
@@ -115,8 +125,7 @@ const SupervisorDashboard = () => {
     setSelectedWorker(null);
     setShowPTWForm(false);
     setSelectedWorkerForPTW(null);
-    loadTasks();
-    loadWorkers();
+    loadData();
   };
 
   if (loading) {
@@ -321,7 +330,7 @@ const SupervisorDashboard = () => {
           worker={selectedWorkerForPTW}
           sites={sites}
           onClose={() => setShowPTWForm(false)}
-          onAssignTask={handleAssignTask}
+          onAssignTask={handleCreateTask}
         />
       )}
       

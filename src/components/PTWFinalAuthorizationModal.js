@@ -3,23 +3,42 @@ import api from '../services/api';
 import { TASK_STATUS } from '../utils/constants';
 
 const PTWFinalAuthorizationModal = ({ task, onClose, onAuthorize }) => {
-  const [issuerName, setIssuerName] = useState('');
-  const [receiverName, setReceiverName] = useState('');
+  const [formData, setFormData] = useState({
+    supervisor_name: '',
+    supervisor_signature: '',
+    authorization_date: new Date().toISOString().split('T')[0],
+  });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.supervisor_name.trim()) newErrors.supervisor_name = 'Name is required';
+    if (!formData.supervisor_signature.trim()) newErrors.supervisor_signature = 'Signature is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!issuerName.trim() || !receiverName.trim()) {
-      alert('Please fill in both names before authorizing.');
-      return;
-    }
-
+    if (!validateForm()) return;
     setLoading(true);
     try {
-      await onAuthorize(task.id, {
-        issuer_name: issuerName,
-        receiver_name: receiverName,
-        status: TASK_STATUS.COMPLETED,
+      await onAuthorize(task.task_id, {
+        supervisor_name: formData.supervisor_name,
+        supervisor_signature: formData.supervisor_signature,
+        authorization_date: formData.authorization_date,
       });
       onClose();
     } catch (error) {
@@ -30,30 +49,35 @@ const PTWFinalAuthorizationModal = ({ task, onClose, onAuthorize }) => {
     }
   };
 
-  const renderChecklist = (category, title) => (
-    <div className="mb-4">
-      <h4 className="font-semibold text-gray-800">{title}</h4>
-      <div className="space-y-1 mt-2 text-sm text-gray-600">
-        {Object.entries(task[category] || {}).map(([key, value]) => (
-          <div key={key} className="flex items-center space-x-2">
-            <span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-              {value === true ? '✅' : value === false ? '❌' : '🤷'}
-            </span>
-            <span>{key.replace(/_/g, ' ')}</span>
-          </div>
-        ))}
-      </div>
-      {task.ptw_files && task.ptw_files[category] && (
-        <div className="mt-2">
-          {Object.entries(task.ptw_files[category]).map(([key, file]) => (
-            <p key={key} className="text-xs text-gray-500">
-              Uploaded file for {key.replace(/_/g, ' ')}: <a href={`http://localhost:5000/uploads/${file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View</a>
-            </p>
+  const renderChecklist = (category, title) => {
+    const ptwFormData = typeof task.ptw_form_data === 'string' ? JSON.parse(task.ptw_form_data) : task.ptw_form_data;
+    const ptwFiles = typeof task.ptw_files === 'string' ? JSON.parse(task.ptw_files) : task.ptw_files;
+
+    return (
+      <div className="mb-4">
+        <h4 className="font-semibold text-gray-800">{title}</h4>
+        <div className="space-y-1 mt-2 text-sm text-gray-600">
+          {Object.entries(ptwFormData[category] || {}).map(([key, value]) => (
+            <div key={key} className="flex items-center space-x-2">
+              <span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                {value === true ? '✅' : value === false ? '❌' : '🤷'}
+              </span>
+              <span>{key.replace(/_/g, ' ')}</span>
+            </div>
           ))}
         </div>
-      )}
-    </div>
-  );
+        {ptwFiles && ptwFiles[category] && (
+          <div className="mt-2">
+            {Object.entries(ptwFiles[category]).map(([key, file]) => (
+              <p key={key} className="text-xs text-gray-500">
+                Uploaded file for {key.replace(/_/g, ' ')}: <a href={`http://localhost:5000/uploads/${file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View</a>
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -81,11 +105,13 @@ const PTWFinalAuthorizationModal = ({ task, onClose, onAuthorize }) => {
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Permit Issuer Name</label>
-              <input type="text" value={issuerName} onChange={(e) => setIssuerName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+              <input type="text" name="supervisor_name" value={formData.supervisor_name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
+              {errors.supervisor_name && <p className="text-red-500 text-xs mt-1">{errors.supervisor_name}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Receiver Name</label>
-              <input type="text" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} className="w-full px-3 py-2 border rounded-lg" required />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Issuer Signature</label>
+              <input type="text" name="supervisor_signature" value={formData.supervisor_signature} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
+              {errors.supervisor_signature && <p className="text-red-500 text-xs mt-1">{errors.supervisor_signature}</p>}
             </div>
           </div>
           <div className="flex justify-end gap-3">
@@ -101,5 +127,4 @@ const PTWFinalAuthorizationModal = ({ task, onClose, onAuthorize }) => {
     </div>
   );
 };
-
 export default PTWFinalAuthorizationModal;

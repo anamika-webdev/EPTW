@@ -16,14 +16,18 @@ export const USER_TYPES = {
 export const TASK_STATUS = {
   ACTIVE: 'active',
   IN_PROGRESS: 'in_progress',
-  COMPLETED: 'completed'
+  COMPLETED: 'completed',
+  PTW_INITIATED: 'ptw_initiated', // Added new status for PTW
+  PTW_SUBMITTED: 'ptw_submitted', // Added new status for PTW
 };
 
 // Task Status Labels
 export const TASK_STATUS_LABELS = {
   [TASK_STATUS.ACTIVE]: 'Active',
   [TASK_STATUS.IN_PROGRESS]: 'In Progress',
-  [TASK_STATUS.COMPLETED]: 'Completed'
+  [TASK_STATUS.COMPLETED]: 'Completed',
+  [TASK_STATUS.PTW_INITIATED]: 'PTW Initiated',
+  [TASK_STATUS.PTW_SUBMITTED]: 'PTW Submitted',
 };
 
 // Task Status Colors
@@ -42,6 +46,16 @@ export const TASK_STATUS_COLORS = {
     bg: 'bg-green-100',
     text: 'text-green-800',
     border: 'border-green-500'
+  },
+  [TASK_STATUS.PTW_INITIATED]: {
+    bg: 'bg-orange-100', // Changed color for clarity
+    text: 'text-orange-800', // Changed color for clarity
+    border: 'border-orange-500' // Changed color for clarity
+  },
+  [TASK_STATUS.PTW_SUBMITTED]: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    border: 'border-purple-500'
   }
 };
 

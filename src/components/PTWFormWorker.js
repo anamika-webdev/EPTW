@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { TASK_STATUS } from '../utils/constants';
 
 const PTWFormWorker = ({ task, onComplete }) => {
   const [formData, setFormData] = useState({
@@ -101,9 +102,10 @@ const PTWFormWorker = ({ task, onComplete }) => {
   };
 
   const handleRemarksChange = (e) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      remarks: e.target.value,
+      remarks: value,
     }));
   };
 
@@ -114,17 +116,15 @@ const PTWFormWorker = ({ task, onComplete }) => {
     try {
       const ptwData = new FormData();
       ptwData.append('ptw_form_data', JSON.stringify(formData));
-      ptwData.append('action', 'submit_ptw_assurance');
-      ptwData.append('task_type', 'ptw');
-
+      
+      // Append files to FormData
       for (const category in files) {
         for (const parameter in files[category]) {
           ptwData.append(`${category}_${parameter}_file`, files[category][parameter]);
         }
       }
 
-      await api.updateTask(task.id, ptwData);
-      onComplete();
+      await onComplete(ptwData);
     } catch (error) {
       console.error('Error submitting PTW form:', error);
       alert('Failed to submit PTW form. Please try again.');

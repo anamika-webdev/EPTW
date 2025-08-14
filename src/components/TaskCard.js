@@ -1,233 +1,82 @@
 import React, { useState } from 'react';
-import { TASK_STATUS } from '../utils/constants';
+import { TASK_STATUS_COLORS } from '../utils/constants';
 
 const TaskCard = ({ task, onAction, onPtwInitiate }) => {
+  const [showFile, setShowFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleFileAction = async (action) => {
-    if (action === 'complete' && !selectedFile) {
-      alert('Please select an image before completing the task');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await onAction(task.task_id, action, selectedFile);
-      setSelectedFile(null);
-    } catch (error) {
-      console.error('Error updating task:', error);
-      alert('Failed to update task. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    return timeString;
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      active: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Active' },
-      in_progress: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Progress' },
-      ptw_submitted: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'PTW Submitted' },
-      completed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed' }
-    };
-
-    const config = statusConfig[status] || statusConfig.active;
-    return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
-        {config.label}
-      </span>
-    );
+  
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
   };
   
-  const isPtwTask = task.task_type === 'ptw';
+  const handleActionClick = (action) => {
+    if (['start', 'complete'].includes(action)) {
+      onAction(task.task_id, action, selectedFile);
+      setShowFile(false);
+      setSelectedFile(null);
+    }
+  };
+
+  const statusColorClass = TASK_STATUS_COLORS[task.status] || TASK_STATUS_COLORS.active;
 
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow duration-200">
-      <div className="flex justify-between items-start mb-4">
+    <div className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${statusColorClass.border}`}>
+      <div className="flex justify-between items-start">
         <div>
-          <h4 className="text-lg font-bold text-gray-800">{task.task_id}</h4>
-          <p className="text-sm text-gray-500">Assigned by: {task.supervisor_name}</p>
+          <h3 className="text-xl font-bold text-gray-800">{task.task_type === 'ptw' ? 'Permit to Work' : 'General Task'}</h3>
+          <p className="text-sm font-medium text-gray-600 mt-1">Task ID: {task.task_id}</p>
         </div>
-        {getStatusBadge(task.status)}
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColorClass.bg} ${statusColorClass.text}`}>
+          {task.status.replace('_', ' ').toUpperCase()}
+        </span>
       </div>
-
-      {isPtwTask && (
-        <div className="bg-purple-50 p-4 rounded-lg mb-4 border-l-4 border-purple-500">
-          <p className="text-purple-800 font-bold">Permit to Work Task</p>
-          <p className="text-sm text-gray-600">Permit Number: <span className="font-medium">{task.permit_number}</span></p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="space-y-2">
-          <div>
-            <span className="font-semibold text-gray-700">Site:</span>
-            <p className="text-gray-600">{task.site_name}</p>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-700">Area:</span>
-            <p className="text-gray-600">{task.assigned_area || task.location_of_work}</p>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-700">Location:</span>
-            <p className="text-gray-600">{task.site_location}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div>
-            <span className="font-semibold text-gray-700">Description:</span>
-            <p className="text-gray-600">{task.task_description || task.work_description}</p>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-700">Date:</span>
-            <p className="text-gray-600">{formatDate(task.implementation_date || task.date_issued)}</p>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-700">Time:</span>
-            <p className="text-gray-600">{formatTime(task.implementation_time || task.time_issued)}</p>
-          </div>
-        </div>
-      </div>
-
-      {task.status === 'active' && !isPtwTask && (
-        <div className="border-t pt-4">
-          <h5 className="font-semibold text-gray-700 mb-3">Start Task</h5>
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-              className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-              required
-            />
-            <button
-              onClick={() => handleFileAction('start')}
-              disabled={!selectedFile || loading}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
-            >
-              {loading ? 'Starting...' : 'Start Task'}
-            </button>
-          </div>
-        </div>
-      )}
       
-      {task.status === 'active' && isPtwTask && (
-        <div className="border-t pt-4">
-          <h5 className="font-semibold text-gray-700 mb-3">PTW Actions</h5>
+      <div className="mt-4 text-sm text-gray-700 space-y-2">
+        <p><strong>Site:</strong> {task.site_name || 'N/A'}</p>
+        <p><strong>Location:</strong> {task.location_of_work || task.site_location || 'N/A'}</p>
+        <p><strong>Description:</strong> {task.task_description || task.work_description}</p>
+        <p><strong>Assigned By:</strong> {task.supervisor_name}</p>
+      </div>
+      
+      {task.status === 'ptw_initiated' && (
+        <div className="mt-6">
           <button
             onClick={() => onPtwInitiate(task)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
           >
-            Fill PTW Assurance Form
+            View PTW Form
           </button>
         </div>
       )}
-
+      
+      {task.status === 'active' && task.task_type !== 'ptw' && (
+        <div className="mt-6 flex flex-col items-center">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Attach start-of-work photo</label>
+          <input 
+            type="file" 
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => handleActionClick('start')}
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg mt-4 transition-colors duration-200"
+          >
+            Start Task
+          </button>
+        </div>
+      )}
+      
       {task.status === 'in_progress' && (
-        <div className="border-t pt-4">
-          <h5 className="font-semibold text-gray-700 mb-3">Task Actions</h5>
-          <div className="space-y-3">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-            />
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                onClick={() => handleFileAction('pause')}
-                disabled={loading}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 transition-colors duration-200 font-medium"
-              >
-                {loading ? 'Pausing...' : 'Pause Task'}
-              </button>
-              <button
-                onClick={() => handleFileAction('complete')}
-                disabled={!selectedFile || loading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
-              >
-                {loading ? 'Completing...' : 'Complete Task'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(task.start_image || task.pause_image || task.completed_image || isPtwTask) && (
-        <div className="border-t pt-4 mt-4">
-          <h5 className="font-semibold text-gray-700 mb-3">Task Images</h5>
-          <div className="flex flex-wrap gap-4">
-            {task.start_image && (
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-600 mb-2">Start Image</p>
-                <img 
-                  src={`http://localhost:5000/uploads/${task.start_image}`} 
-                  alt="Task Start" 
-                  className="w-20 h-20 object-cover rounded-lg border-2 border-green-200"
-                />
-              </div>
-            )}
-            {task.pause_image && (
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-600 mb-2">Pause Image</p>
-                <img 
-                  src={`http://localhost:5000/uploads/${task.pause_image}`} 
-                  alt="Task Pause" 
-                  className="w-20 h-20 object-cover rounded-lg border-2 border-yellow-200"
-                />
-              </div>
-            )}
-            {task.completed_image && (
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-600 mb-2">Completed Image</p>
-                <img 
-                  src={`http://localhost:5000/uploads/${task.completed_image}`} 
-                  alt="Task Completed" 
-                  className="w-20 h-20 object-cover rounded-lg border-2 border-blue-200"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {(task.started_at || task.paused_at || task.completed_at) && (
-        <div className="border-t pt-4 mt-4">
-          <h5 className="font-semibold text-gray-700 mb-3">Timeline</h5>
-          <div className="space-y-2 text-sm">
-            {task.started_at && (
-              <div className="flex items-center text-green-600">
-                <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-                Started: {new Date(task.started_at).toLocaleString()}
-              </div>
-            )}
-            {task.paused_at && (
-              <div className="flex items-center text-yellow-600">
-                <span className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></span>
-                Paused: {new Date(task.paused_at).toLocaleString()}
-              </div>
-            )}
-            {task.completed_at && (
-              <div className="flex items-center text-blue-600">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
-                Completed: {new Date(task.completed_at).toLocaleString()}
-              </div>
-            )}
-          </div>
+        <div className="mt-6">
+          <button
+            onClick={() => handleActionClick('complete')}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+          >
+            Complete Task
+          </button>
         </div>
       )}
     </div>
   );
 };
-
 export default TaskCard;

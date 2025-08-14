@@ -37,10 +37,6 @@ const WorkerDashboard = () => {
     try {
       const data = await api.getTasks({ worker_id: user.user_id });
       setTasks(data);
-      const ptwTask = data.find(task => task.task_type === 'ptw' && task.status === 'active');
-      if (ptwTask) {
-        setSelectedPtwTask(ptwTask);
-      }
     } catch (error) {
       console.error('Error loading tasks:', error);
     }
@@ -52,6 +48,7 @@ const WorkerDashboard = () => {
       setNotifications(data.count);
     } catch (error) {
       console.error('Error loading notifications:', error);
+      setNotifications(0);
     }
   };
 
@@ -71,10 +68,21 @@ const WorkerDashboard = () => {
     }
   };
   
-  const handlePtwFormCompletion = async () => {
-    await loadData();
-    setSelectedPtwTask(null);
+  const handlePtwFormCompletion = async (taskId, formData) => {
+    try {
+      await api.updatePtwForm(taskId, formData);
+      await loadData();
+      setSelectedPtwTask(null);
+    } catch (error) {
+      console.error('Error completing PTW form:', error);
+      throw error;
+    }
   };
+
+  const handlePtwInitiate = (task) => {
+    setSelectedPtwTask(task);
+  };
+  
 
   const getFilteredTasks = () => {
     switch (activeTab) {
@@ -85,7 +93,7 @@ const WorkerDashboard = () => {
       case 'completed':
         return tasks.filter(task => task.status === 'completed');
       case 'ptw_assigned':
-        return tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted'));
+        return tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted' || task.status === 'ptw_initiated'));
       default:
         return tasks;
     }
@@ -96,7 +104,7 @@ const WorkerDashboard = () => {
       active: tasks.filter(task => task.status === 'active' && task.task_type !== 'ptw').length,
       in_progress: tasks.filter(task => task.status === 'in_progress').length,
       completed: tasks.filter(task => task.status === 'completed').length,
-      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted')).length,
+      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted' || task.status === 'ptw_initiated')).length,
     };
   };
 
@@ -114,7 +122,7 @@ const WorkerDashboard = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {selectedPtwTask ? (
-        <PTWFormWorker task={selectedPtwTask} onComplete={handlePtwFormCompletion} />
+        <PTWFormWorker task={selectedPtwTask} onComplete={(formData) => handlePtwFormCompletion(selectedPtwTask.task_id, formData)} />
       ) : (
         <>
           <div className="mb-6">
@@ -243,7 +251,7 @@ const WorkerDashboard = () => {
                       key={task.id}
                       task={task}
                       onAction={handleTaskAction}
-                      onPtwInitiate={() => setSelectedPtwTask(task)}
+                      onPtwInitiate={handlePtwInitiate}
                     />
                   ))}
                 </div>

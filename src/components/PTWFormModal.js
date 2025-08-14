@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { TASK_STATUS } from '../utils/constants';
 
-const PTWFormModal = ({ worker, onClose, onAssignTask }) => {
+const PTWFormModal = ({ worker, sites, onClose, onAssignTask }) => {
   const [formData, setFormData] = useState({
+    site_id: '', // Added site_id to formData state
     site_name: '',
     permit_number: '',
     date_issued: '',
@@ -11,7 +12,7 @@ const PTWFormModal = ({ worker, onClose, onAssignTask }) => {
     valid_until_time: '',
     work_description: '',
     location_of_work: '',
-    status: 'ptw_initiated', // Correct status set here
+    status: TASK_STATUS.PTW_INITIATED,
     task_type: 'ptw',
   });
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ const PTWFormModal = ({ worker, onClose, onAssignTask }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.site_name.trim()) newErrors.site_name = 'Site Name is required';
+    if (!formData.site_id) newErrors.site_id = 'Site is required';
     if (!formData.permit_number.trim()) newErrors.permit_number = 'Permit Number is required';
     if (!formData.date_issued.trim()) newErrors.date_issued = 'Date Issued is required';
     if (!formData.work_description.trim()) newErrors.work_description = 'Work Description is required';
@@ -30,10 +31,15 @@ const PTWFormModal = ({ worker, onClose, onAssignTask }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const newState = { ...prev, [name]: value };
+      if (name === 'site_id') {
+        const selectedSite = sites.find(site => site.site_id === value);
+        newState.site_name = selectedSite ? selectedSite.site_name : '';
+        newState.location_of_work = selectedSite ? selectedSite.location : '';
+      }
+      return newState;
+    });
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -67,9 +73,24 @@ const PTWFormModal = ({ worker, onClose, onAssignTask }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Project / Site Name *</label>
-              <input type="text" name="site_name" value={formData.site_name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
-              {errors.site_name && <p className="text-red-500 text-xs mt-1">{errors.site_name}</p>}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Project / Site *</label>
+              <select
+                name="site_id"
+                value={formData.site_id}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.site_id ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              >
+                <option value="">Select Site</option>
+                {sites.map((site) => (
+                  <option key={site.id} value={site.site_id}>
+                    {site.site_name}
+                  </option>
+                ))}
+              </select>
+              {errors.site_id && <p className="text-red-500 text-xs mt-1">{errors.site_id}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Permit Number *</label>
