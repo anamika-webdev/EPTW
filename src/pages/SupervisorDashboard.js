@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileDropdown } from '../components/ProfileDropdown';
 import api from '../services/api';
+import PTWFormModal from '../components/PTWFormModal';
+import PTWFinalAuthorizationModal from '../components/PTWFinalAuthorizationModal';
+import TaskAssignmentForm from '../components/TaskAssignmentForm';
 
 const SupervisorDashboard = () => {
   const { user } = useAuth();
@@ -11,6 +14,9 @@ const SupervisorDashboard = () => {
   const [sites, setSites] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPTWForm, setShowPTWForm] = useState(false);
+  const [selectedWorkerForPTW, setSelectedWorkerForPTW] = useState(null);
+  const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -58,7 +64,21 @@ const SupervisorDashboard = () => {
     }
   };
 
-  const handleAssignTask = (worker) => {
+  const handleAssignTask = async (taskData) => {
+    try {
+      await api.createTask({
+        supervisor_id: user.user_id,
+        ...taskData,
+        status: 'active'
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
+    }
+  };
+  
+  const handleRegularTaskAssign = (worker) => {
     if (!worker.is_available) {
       alert('This worker is currently busy with another task.');
       return;
@@ -66,10 +86,35 @@ const SupervisorDashboard = () => {
     setSelectedWorker(worker);
     setShowTaskForm(true);
   };
+  
+  const handleInitiatePTW = (worker) => {
+    if (!worker.is_available) {
+      alert('This worker is currently busy with another task.');
+      return;
+    }
+    setSelectedWorkerForPTW(worker);
+    setShowPTWForm(true);
+  };
+  
+  const handleAuthorizePTW = async (taskId, authorizationData) => {
+    try {
+      const formData = new FormData();
+      formData.append('ptw_authorization_data', JSON.stringify(authorizationData));
+      formData.append('action', 'authorize_ptw');
+      await api.updateTask(taskId, formData);
+      loadData();
+      setPtwToAuthorize(null);
+    } catch (error) {
+      console.error('Error authorizing PTW:', error);
+      throw error;
+    }
+  };
 
   const handleTaskAssigned = () => {
     setShowTaskForm(false);
     setSelectedWorker(null);
+    setShowPTWForm(false);
+    setSelectedWorkerForPTW(null);
     loadTasks();
     loadWorkers();
   };
@@ -81,17 +126,14 @@ const SupervisorDashboard = () => {
       </div>
     );
   }
-
+  
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        {/* Header with Profile */}
         <div className="flex justify-between items-center mb-4">
-          
           <ProfileDropdown position="right" />
         </div>
         
-        {/* Dashboard Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
@@ -120,7 +162,7 @@ const SupervisorDashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Tasks</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {tasks.filter(t => t.status === 'active').length}
+                  {tasks.filter(t => t.status === 'active' || t.status === 'ptw_submitted').length}
                 </p>
               </div>
               <div className="text-3xl">⚡</div>
@@ -142,7 +184,6 @@ const SupervisorDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Workers Table - Takes 2 columns */}
         <div className="xl:col-span-2 bg-white rounded-lg shadow-md">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800">Workers Management</h3>
@@ -192,13 +233,22 @@ const SupervisorDashboard = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleAssignTask(worker)}
-                        disabled={!worker.is_available}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                      >
-                        Assign Task
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleInitiatePTW(worker)}
+                          disabled={!worker.is_available}
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                        >
+                          Initiate PTW
+                        </button>
+                        <button
+                          onClick={() => handleRegularTaskAssign(worker)}
+                          disabled={!worker.is_available}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                        >
+                          Assign Task
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -207,7 +257,6 @@ const SupervisorDashboard = () => {
           </div>
         </div>
 
-        {/* Recent Tasks - Takes 1 column */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800">Recent Tasks</h3>
@@ -234,10 +283,19 @@ const SupervisorDashboard = () => {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       task.status === 'active' ? 'bg-yellow-100 text-yellow-800' :
                       task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                      task.status === 'ptw_submitted' ? 'bg-purple-100 text-purple-800' :
                       'bg-green-100 text-green-800'
                     }`}>
-                      {task.status.replace('_', ' ').toUpperCase()}
+                      {task.status === 'ptw_submitted' ? 'PTW Submitted' : task.status.replace('_', ' ').toUpperCase()}
                     </span>
+                    {task.status === 'ptw_submitted' && (
+                      <button
+                        onClick={() => setPtwToAuthorize(task)}
+                        className="ml-2 bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded"
+                      >
+                        Authorize
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -245,8 +303,7 @@ const SupervisorDashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Task Assignment Modal */}
+      
       {showTaskForm && selectedWorker && (
         <TaskAssignmentForm
           worker={selectedWorker}
@@ -258,231 +315,24 @@ const SupervisorDashboard = () => {
           onSuccess={handleTaskAssigned}
         />
       )}
+      
+      {showPTWForm && selectedWorkerForPTW && (
+        <PTWFormModal
+          worker={selectedWorkerForPTW}
+          sites={sites}
+          onClose={() => setShowPTWForm(false)}
+          onAssignTask={handleAssignTask}
+        />
+      )}
+      
+      {ptwToAuthorize && (
+        <PTWFinalAuthorizationModal
+          task={ptwToAuthorize}
+          onClose={() => setPtwToAuthorize(null)}
+          onAuthorize={handleAuthorizePTW}
+        />
+      )}
     </div>
   );
 };
-
-const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    site_id: '',
-    assigned_area: '',
-    task_description: '',
-    implementation_date: '',
-    implementation_time: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.site_id) newErrors.site_id = 'Site is required';
-    if (!formData.assigned_area.trim()) newErrors.assigned_area = 'Assigned area is required';
-    if (!formData.task_description.trim()) newErrors.task_description = 'Task description is required';
-    if (!formData.implementation_date) newErrors.implementation_date = 'Implementation date is required';
-    if (!formData.implementation_time) newErrors.implementation_time = 'Implementation time is required';
-
-    // Check if date is not in the past
-    const selectedDate = new Date(formData.implementation_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      newErrors.implementation_date = 'Implementation date cannot be in the past';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await api.createTask({
-        worker_id: worker.user_id,
-        ...formData
-      });
-      onSuccess();
-    } catch (error) {
-      console.error('Error creating task:', error);
-      alert('Failed to assign task. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const selectedSite = sites.find(site => site.site_id === formData.site_id);
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg w-full max-w-lg max-h-96 overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800">Assign Task</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Worker Info */}
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <h4 className="font-semibold text-blue-800 mb-2">Assigning to:</h4>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {worker.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'W'}
-            </div>
-            <div>
-              <div className="font-medium">{worker.name}</div>
-              <div className="text-sm text-gray-600">{worker.user_id} • {worker.domain || 'N/A'}</div>
-            </div>
-          </div>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Site *</label>
-            <select
-              name="site_id"
-              value={formData.site_id}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.site_id ? 'border-red-500' : 'border-gray-300'
-              }`}
-              required
-            >
-              <option value="">Select Site</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.site_id}>
-                  {site.site_name} - {site.location}
-                </option>
-              ))}
-            </select>
-            {errors.site_id && <p className="text-red-500 text-xs mt-1">{errors.site_id}</p>}
-          </div>
-
-          {selectedSite && (
-            <div className="bg-gray-50 p-3 rounded-lg text-sm">
-              <p><strong>Coordinates:</strong> {selectedSite.latitude}, {selectedSite.longitude}</p>
-              <p><strong>Location:</strong> {selectedSite.location}</p>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Area *</label>
-            <input
-              type="text"
-              name="assigned_area"
-              value={formData.assigned_area}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.assigned_area ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="e.g., Tower Section A, Ground Floor"
-              required
-            />
-            {errors.assigned_area && <p className="text-red-500 text-xs mt-1">{errors.assigned_area}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Task Description *</label>
-            <textarea
-              name="task_description"
-              value={formData.task_description}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.task_description ? 'border-red-500' : 'border-gray-300'
-              }`}
-              rows="3"
-              placeholder="Describe the task in detail..."
-              required
-            />
-            {errors.task_description && <p className="text-red-500 text-xs mt-1">{errors.task_description}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Implementation Date *</label>
-              <input
-                type="date"
-                name="implementation_date"
-                value={formData.implementation_date}
-                onChange={handleInputChange}
-                min={new Date().toISOString().split('T')[0]}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.implementation_date ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              />
-              {errors.implementation_date && <p className="text-red-500 text-xs mt-1">{errors.implementation_date}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Implementation Time *</label>
-              <input
-                type="time"
-                name="implementation_time"
-                value={formData.implementation_time}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.implementation_time ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              />
-              {errors.implementation_time && <p className="text-red-500 text-xs mt-1">{errors.implementation_time}</p>}
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium disabled:opacity-50 transition-colors duration-200"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Assigning...
-                </div>
-              ) : (
-                'Assign Task'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
 export default SupervisorDashboard;

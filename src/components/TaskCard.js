@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { TASK_STATUS } from '../utils/constants';
 
-const TaskCard = ({ task, onAction }) => {
+const TaskCard = ({ task, onAction, onPtwInitiate }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +37,7 @@ const TaskCard = ({ task, onAction }) => {
     const statusConfig = {
       active: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Active' },
       in_progress: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Progress' },
+      ptw_submitted: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'PTW Submitted' },
       completed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed' }
     };
 
@@ -46,6 +48,8 @@ const TaskCard = ({ task, onAction }) => {
       </span>
     );
   };
+  
+  const isPtwTask = task.task_type === 'ptw';
 
   return (
     <div className="bg-white border rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -57,6 +61,13 @@ const TaskCard = ({ task, onAction }) => {
         {getStatusBadge(task.status)}
       </div>
 
+      {isPtwTask && (
+        <div className="bg-purple-50 p-4 rounded-lg mb-4 border-l-4 border-purple-500">
+          <p className="text-purple-800 font-bold">Permit to Work Task</p>
+          <p className="text-sm text-gray-600">Permit Number: <span className="font-medium">{task.permit_number}</span></p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="space-y-2">
           <div>
@@ -65,7 +76,7 @@ const TaskCard = ({ task, onAction }) => {
           </div>
           <div>
             <span className="font-semibold text-gray-700">Area:</span>
-            <p className="text-gray-600">{task.assigned_area}</p>
+            <p className="text-gray-600">{task.assigned_area || task.location_of_work}</p>
           </div>
           <div>
             <span className="font-semibold text-gray-700">Location:</span>
@@ -75,21 +86,20 @@ const TaskCard = ({ task, onAction }) => {
         <div className="space-y-2">
           <div>
             <span className="font-semibold text-gray-700">Description:</span>
-            <p className="text-gray-600">{task.task_description}</p>
+            <p className="text-gray-600">{task.task_description || task.work_description}</p>
           </div>
           <div>
             <span className="font-semibold text-gray-700">Date:</span>
-            <p className="text-gray-600">{formatDate(task.implementation_date)}</p>
+            <p className="text-gray-600">{formatDate(task.implementation_date || task.date_issued)}</p>
           </div>
           <div>
             <span className="font-semibold text-gray-700">Time:</span>
-            <p className="text-gray-600">{formatTime(task.implementation_time)}</p>
+            <p className="text-gray-600">{formatTime(task.implementation_time || task.time_issued)}</p>
           </div>
         </div>
       </div>
 
-      {/* Task Actions */}
-      {task.status === 'active' && (
+      {task.status === 'active' && !isPtwTask && (
         <div className="border-t pt-4">
           <h5 className="font-semibold text-gray-700 mb-3">Start Task</h5>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
@@ -108,6 +118,18 @@ const TaskCard = ({ task, onAction }) => {
               {loading ? 'Starting...' : 'Start Task'}
             </button>
           </div>
+        </div>
+      )}
+      
+      {task.status === 'active' && isPtwTask && (
+        <div className="border-t pt-4">
+          <h5 className="font-semibold text-gray-700 mb-3">PTW Actions</h5>
+          <button
+            onClick={() => onPtwInitiate(task)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 font-medium"
+          >
+            Fill PTW Assurance Form
+          </button>
         </div>
       )}
 
@@ -141,8 +163,7 @@ const TaskCard = ({ task, onAction }) => {
         </div>
       )}
 
-      {/* Display uploaded images */}
-      {(task.start_image || task.pause_image || task.completed_image) && (
+      {(task.start_image || task.pause_image || task.completed_image || isPtwTask) && (
         <div className="border-t pt-4 mt-4">
           <h5 className="font-semibold text-gray-700 mb-3">Task Images</h5>
           <div className="flex flex-wrap gap-4">
@@ -150,7 +171,7 @@ const TaskCard = ({ task, onAction }) => {
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-600 mb-2">Start Image</p>
                 <img 
-                  src={`http://localhost:3001/uploads/${task.start_image}`} 
+                  src={`http://localhost:5000/uploads/${task.start_image}`} 
                   alt="Task Start" 
                   className="w-20 h-20 object-cover rounded-lg border-2 border-green-200"
                 />
@@ -160,7 +181,7 @@ const TaskCard = ({ task, onAction }) => {
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-600 mb-2">Pause Image</p>
                 <img 
-                  src={`http://localhost:3001/uploads/${task.pause_image}`} 
+                  src={`http://localhost:5000/uploads/${task.pause_image}`} 
                   alt="Task Pause" 
                   className="w-20 h-20 object-cover rounded-lg border-2 border-yellow-200"
                 />
@@ -170,7 +191,7 @@ const TaskCard = ({ task, onAction }) => {
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-600 mb-2">Completed Image</p>
                 <img 
-                  src={`http://localhost:3001/uploads/${task.completed_image}`} 
+                  src={`http://localhost:5000/uploads/${task.completed_image}`} 
                   alt="Task Completed" 
                   className="w-20 h-20 object-cover rounded-lg border-2 border-blue-200"
                 />
@@ -180,7 +201,6 @@ const TaskCard = ({ task, onAction }) => {
         </div>
       )}
 
-      {/* Task Timeline */}
       {(task.started_at || task.paused_at || task.completed_at) && (
         <div className="border-t pt-4 mt-4">
           <h5 className="font-semibold text-gray-700 mb-3">Timeline</h5>

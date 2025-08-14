@@ -32,7 +32,6 @@ class ApiService {
     }
   }
 
-  // Auth endpoints
   login(credentials) {
     return this.request('/auth/login', {
       method: 'POST',
@@ -40,7 +39,6 @@ class ApiService {
     });
   }
 
-  // User endpoints
   getUsers(userType) {
     const query = userType ? `?user_type=${userType}` : '';
     return this.request(`/users${query}`);
@@ -85,7 +83,6 @@ class ApiService {
     return this.request('/workers');
   }
 
-  // Site endpoints
   getSites() {
     return this.request('/sites');
   }
@@ -125,7 +122,6 @@ class ApiService {
     return this.request(`/sites/search/${encodeURIComponent(query)}`);
   }
 
-  // Task endpoints
   getTasks(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/tasks${query ? `?${query}` : ''}`);
@@ -166,12 +162,10 @@ class ApiService {
     return this.request(`/workers/${workerId}/active-tasks-count`);
   }
 
-  // Dashboard endpoints
   getDashboardStats() {
     return this.request('/dashboard/stats');
   }
 
-  // Utility methods for better error handling
   async handleApiCall(apiFunction, errorMessage = 'Operation failed') {
     try {
       return await apiFunction();
@@ -181,7 +175,6 @@ class ApiService {
     }
   }
 
-  // Batch operations
   async batchRequest(requests) {
     try {
       const results = await Promise.all(requests.map(request => 
@@ -194,7 +187,6 @@ class ApiService {
     }
   }
 
-  // File upload helper
   uploadFile(file, endpoint = '/upload') {
     const formData = new FormData();
     formData.append('file', file);
@@ -205,7 +197,6 @@ class ApiService {
     });
   }
 
-  // Export data
   exportUsers(format = 'json') {
     return this.request(`/users/export?format=${format}`, {
       method: 'GET'
@@ -225,7 +216,6 @@ class ApiService {
     });
   }
 
-  // Advanced search with filters
   advancedSearch(type, filters) {
     return this.request(`/${type}/advanced-search`, {
       method: 'POST',
@@ -233,7 +223,6 @@ class ApiService {
     });
   }
 
-  // Pagination helper
   getPaginated(endpoint, page = 1, limit = 10, params = {}) {
     const query = new URLSearchParams({
       page,
@@ -244,18 +233,14 @@ class ApiService {
     return this.request(`${endpoint}?${query}`);
   }
 
-  // Cache management
   clearCache() {
-    // Clear any cached data if implemented
     return Promise.resolve();
   }
 
-  // Health check
   healthCheck() {
     return this.request('/health');
   }
 
-  // Statistics and analytics
   getAnalytics(type, timeRange = '7d') {
     return this.request(`/analytics/${type}?range=${timeRange}`);
   }
@@ -272,7 +257,6 @@ class ApiService {
     return this.request(`/tasks/metrics?range=${timeRange}`);
   }
 
-  // Notifications
   getNotifications(userId) {
     return this.request(`/users/${userId}/notifications`);
   }
@@ -283,7 +267,6 @@ class ApiService {
     });
   }
 
-  // Settings and preferences
   getUserSettings(userId) {
     return this.request(`/users/${userId}/settings`);
   }
@@ -295,14 +278,11 @@ class ApiService {
     });
   }
 
-  // Real-time data (for future WebSocket implementation)
   subscribeToUpdates(callback) {
-    // Placeholder for WebSocket implementation
     console.log('Real-time updates not yet implemented');
   }
 
   unsubscribeFromUpdates() {
-    // Placeholder for WebSocket cleanup
     console.log('Unsubscribing from real-time updates');
   }
 }
