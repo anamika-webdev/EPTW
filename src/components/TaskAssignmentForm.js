@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
 const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber }) => {
   const [taskDetails, setTaskDetails] = useState({
     worker_id: worker.user_id,
-    task_type: 'general',
+    task_type: permitNumber ? 'ptw' : 'general',
     status: 'active',
     site_id: '',
     assigned_area: '',
     task_description: '',
     implementation_date: '',
     implementation_time: '',
-    permit_number: permitNumber || '' // Set the permit number if provided
+    permit_number: permitNumber || ''
   });
 
   const handleChange = (e) => {

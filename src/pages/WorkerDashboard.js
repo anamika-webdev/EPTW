@@ -73,13 +73,13 @@ const WorkerDashboard = () => {
   const getFilteredTasks = () => {
     switch (activeTab) {
       case 'active':
-        return tasks.filter(task => task.status === 'active' && task.task_type !== 'ptw');
+        return tasks.filter(task => task.status === 'active');
       case 'in_progress':
         return tasks.filter(task => task.status === 'in_progress');
       case 'completed':
         return tasks.filter(task => task.status === 'completed');
       case 'ptw_assigned':
-        return tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted' || task.status === 'ptw_initiated'));
+        return tasks.filter(task => task.task_type === 'ptw' && (task.status === 'ptw_submitted' || task.status === 'ptw_initiated'));
       default:
         return tasks;
     }
@@ -87,10 +87,10 @@ const WorkerDashboard = () => {
 
   const getTaskCounts = () => {
     return {
-      active: tasks.filter(task => task.status === 'active' && task.task_type !== 'ptw').length,
+      active: tasks.filter(task => task.status === 'active').length,
       in_progress: tasks.filter(task => task.status === 'in_progress').length,
       completed: tasks.filter(task => task.status === 'completed').length,
-      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && (task.status === 'active' || task.status === 'ptw_submitted' || task.status === 'ptw_initiated')).length,
+      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && (task.status === 'ptw_submitted' || task.status === 'ptw_initiated')).length,
     };
   };
 
