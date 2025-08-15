@@ -1,130 +1,143 @@
 import React, { useState } from 'react';
 import api from '../services/api';
-import { TASK_STATUS } from '../utils/constants';
+import { useAuth } from '../context/AuthContext';
+import { API_CONFIG } from '../utils/constants';
+
+// Helper function to render nested object details recursively
+const renderDetails = (details) => {
+  if (!details || Object.keys(details).length === 0) {
+    return <li className="italic text-gray-500">No details provided.</li>;
+  }
+
+  return Object.entries(details).map(([key, value]) => (
+    <li key={key}>
+      <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span>
+      {typeof value === 'object' && value !== null ? (
+        <ul className="list-disc list-inside ml-4 mt-1">
+          {renderDetails(value)}
+        </ul>
+      ) : (
+        <span> {value.toString()}</span>
+      )}
+    </li>
+  ));
+};
+
+// Helper function to render file uploads
+const renderFiles = (files) => {
+  if (!files || Object.keys(files).length === 0) {
+    return <p className="italic text-gray-500">No files uploaded.</p>;
+  }
+
+  const allFiles = [];
+  Object.entries(files).forEach(([category, fileObject]) => {
+    Object.entries(fileObject).forEach(([key, filename]) => {
+      const imageUrl = `${API_CONFIG.BASE_URL}/uploads/${filename}`;
+      allFiles.push({ key: `${category}-${key}`, url: imageUrl, label: `${category.replace(/_/g, ' ')} - ${key.replace(/_/g, ' ')}` });
+    });
+  });
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {allFiles.map((file) => (
+        <a key={file.key} href={file.url} target="_blank" rel="noopener noreferrer" className="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+          <img src={file.url} alt={file.label} className="w-full h-32 object-cover"/>
+          <p className="p-2 text-center text-sm font-medium text-gray-700">{file.label}</p>
+        </a>
+      ))}
+    </div>
+  );
+};
 
 const PTWFinalAuthorizationModal = ({ task, onClose, onAuthorize }) => {
-  const [formData, setFormData] = useState({
-    supervisor_name: '',
-    supervisor_signature: '',
-    authorization_date: new Date().toISOString().split('T')[0],
-  });
+  const { user } = useAuth();
+  const [supervisorSignature, setSupervisorSignature] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.supervisor_name.trim()) newErrors.supervisor_name = 'Name is required';
-    if (!formData.supervisor_signature.trim()) newErrors.supervisor_signature = 'Signature is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
+  const handleAuthorize = async () => {
+    if (!supervisorSignature) {
+      alert('Supervisor signature is required.');
+      return;
     }
-  };
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+
     setLoading(true);
     try {
-      await onAuthorize(task.task_id, {
-        supervisor_name: formData.supervisor_name,
-        supervisor_signature: formData.supervisor_signature,
-        authorization_date: formData.authorization_date,
+      await onAuthorize(task, {
+        supervisor_name: user.name,
+        supervisor_signature: supervisorSignature,
+        authorization_date: new Date().toISOString().split('T')[0],
       });
       onClose();
     } catch (error) {
-      console.error('Error authorizing PTW:', error);
       alert('Failed to authorize PTW. Please try again.');
+      console.error('Authorization error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderChecklist = (category, title) => {
-    const ptwFormData = typeof task.ptw_form_data === 'string' ? JSON.parse(task.ptw_form_data) : task.ptw_form_data;
-    const ptwFiles = typeof task.ptw_files === 'string' ? JSON.parse(task.ptw_files) : task.ptw_files;
+  if (!task) {
+    return null;
+  }
 
-    return (
-      <div className="mb-4">
-        <h4 className="font-semibold text-gray-800">{title}</h4>
-        <div className="space-y-1 mt-2 text-sm text-gray-600">
-          {Object.entries(ptwFormData[category] || {}).map(([key, value]) => (
-            <div key={key} className="flex items-center space-x-2">
-              <span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-                {value === true ? '✅' : value === false ? '❌' : '🤷'}
-              </span>
-              <span>{key.replace(/_/g, ' ')}</span>
-            </div>
-          ))}
-        </div>
-        {ptwFiles && ptwFiles[category] && (
-          <div className="mt-2">
-            {Object.entries(ptwFiles[category]).map(([key, file]) => (
-              <p key={key} className="text-xs text-gray-500">
-                Uploaded file for {key.replace(/_/g, ' ')}: <a href={`http://localhost:5000/uploads/${file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View</a>
-              </p>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const ptwFormData = typeof task.ptw_form_data === 'string' ? JSON.parse(task.ptw_form_data) : task.ptw_form_data;
+  const ptwFilesData = typeof task.ptw_files === 'string' ? JSON.parse(task.ptw_files) : task.ptw_files;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-screen overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4">Final Authorization for PTW</h3>
-        <p className="text-gray-600 mb-6">Review the worker's submitted form and provide final authorization.</p>
-
-        <div className="border border-gray-200 p-4 rounded-lg mb-6 max-h-80 overflow-y-auto">
-          <h4 className="text-xl font-semibold mb-3">Worker's Submission for PTW #{task.permit_number}</h4>
-          {renderChecklist('generalDetails', '1. General PTW Details')}
-          {renderChecklist('hazardAssessment', '2. Hazard Identification & Risk Assessment')}
-          {renderChecklist('worksitePreparation', '3. Worksite Preparation')}
-          {renderChecklist('ppe', '4. Personal Protective Equipment (PPE)')}
-          {renderChecklist('workforceCommunication', '5. Workforce Competence & Communication')}
-          {renderChecklist('specialConditions', '6. Special Conditions & Additional Controls')}
-          {task.remarks && (
-            <div className="mt-4">
-              <h4 className="font-semibold">Worker Remarks:</h4>
-              <p className="text-sm text-gray-600 mt-1">{task.remarks}</p>
-            </div>
-          )}
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+      <div className="relative p-8 bg-white w-full max-w-2xl rounded-lg shadow-xl">
+        <h3 className="text-2xl font-bold mb-4 text-gray-800">Final PTW Authorization</h3>
+        
+        <div className="mb-6 border-b pb-4">
+          <p className="mb-2 text-lg">Permit No: <span className="font-semibold text-blue-600">{task.permit_number}</span></p>
+          <p className="mb-2 text-lg">Worker: <span className="font-semibold text-gray-700">{task.worker_name}</span></p>
+          <p className="text-lg">Site: <span className="font-semibold text-gray-700">{task.site_name}</span></p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Issuer Name</label>
-              <input type="text" name="supervisor_name" value={formData.supervisor_name} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
-              {errors.supervisor_name && <p className="text-red-500 text-xs mt-1">{errors.supervisor_name}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Issuer Signature</label>
-              <input type="text" name="supervisor_signature" value={formData.supervisor_signature} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg" required />
-              {errors.supervisor_signature && <p className="text-red-500 text-xs mt-1">{errors.supervisor_signature}</p>}
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg font-medium">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium disabled:opacity-50">
-              {loading ? 'Authorizing...' : 'Final Authorize'}
-            </button>
-          </div>
-        </form>
+        <div className="mb-6 max-h-96 overflow-y-auto border p-4 rounded-lg bg-gray-50">
+          <h4 className="text-xl font-bold mb-3 text-gray-800">Worker Submitted Details</h4>
+          <ul className="list-disc list-inside space-y-2 text-gray-700">
+            {renderDetails(ptwFormData)}
+          </ul>
+        </div>
+
+        <div className="mb-6 max-h-96 overflow-y-auto border p-4 rounded-lg bg-gray-50">
+          <h4 className="text-xl font-bold mb-3 text-gray-800">Uploaded Files</h4>
+          {renderFiles(ptwFilesData)}
+        </div>
+        
+        <label htmlFor="supervisorSignature" className="block text-sm font-medium text-gray-700">
+          Your Signature
+        </label>
+        <input
+          type="text"
+          id="supervisorSignature"
+          value={supervisorSignature}
+          onChange={(e) => setSupervisorSignature(e.target.value)}
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          required
+        />
+        
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAuthorize}
+            disabled={loading || !supervisorSignature}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors duration-200 ${
+              loading || !supervisorSignature ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {loading ? 'Authorizing...' : 'Authorize'}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
 export default PTWFinalAuthorizationModal;

@@ -2,22 +2,30 @@ import React, { useState } from 'react';
 import { TASK_STATUS_COLORS } from '../utils/constants';
 
 const TaskCard = ({ task, onAction, onPtwInitiate }) => {
-  const [showFile, setShowFile] = useState(false);
+  const [showActionForm, setShowActionForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [remarks, setRemarks] = useState('');
   
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
   };
+
+  const handleRemarksChange = (e) => {
+    setRemarks(e.target.value);
+  };
   
   const handleActionClick = (action) => {
-    if (['start', 'complete'].includes(action)) {
-      onAction(task.task_id, action, selectedFile);
-      setShowFile(false);
-      setSelectedFile(null);
-    }
+    onAction(task.task_id, action, selectedFile, remarks);
+    // Reset state after action
+    setShowActionForm(false);
+    setSelectedFile(null);
+    setRemarks('');
   };
 
   const statusColorClass = TASK_STATUS_COLORS[task.status] || TASK_STATUS_COLORS.active;
+  const isPtwReady = task.task_type === 'ptw' && task.status === 'ptw_initiated';
+  const isGeneralActive = task.task_type !== 'ptw' && task.status === 'active';
+  const isInProgress = task.status === 'in_progress';
 
   return (
     <div className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${statusColorClass.border}`}>
@@ -32,51 +40,91 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
       </div>
       
       <div className="mt-4 text-sm text-gray-700 space-y-2">
+        {task.permit_number && (
+          <p><strong>Permit No:</strong> {task.permit_number}</p>
+        )}
         <p><strong>Site:</strong> {task.site_name || 'N/A'}</p>
         <p><strong>Location:</strong> {task.location_of_work || task.site_location || 'N/A'}</p>
         <p><strong>Description:</strong> {task.task_description || task.work_description}</p>
         <p><strong>Assigned By:</strong> {task.supervisor_name}</p>
       </div>
-      
-      {task.status === 'ptw_initiated' && (
-        <div className="mt-6">
+
+      <div className="mt-6 space-y-4">
+        {isPtwReady && (
           <button
             onClick={() => onPtwInitiate(task)}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
           >
-            View PTW Form
+            Fill PTW Form
           </button>
-        </div>
-      )}
-      
-      {task.status === 'active' && task.task_type !== 'ptw' && (
-        <div className="mt-6 flex flex-col items-center">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Attach start-of-work photo</label>
-          <input 
-            type="file" 
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            onChange={handleFileChange}
-          />
+        )}
+        
+        {(isGeneralActive || isInProgress) && !showActionForm && (
           <button
-            onClick={() => handleActionClick('start')}
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg mt-4 transition-colors duration-200"
+            onClick={() => setShowActionForm(true)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
           >
-            Start Task
+            Update Status
           </button>
-        </div>
-      )}
-      
-      {task.status === 'in_progress' && (
-        <div className="mt-6">
-          <button
-            onClick={() => handleActionClick('complete')}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-          >
-            Complete Task
-          </button>
-        </div>
-      )}
+        )}
+        
+        {showActionForm && (
+          <div className="border p-4 rounded-lg bg-gray-50 space-y-3">
+            <h4 className="text-md font-bold text-gray-800">Complete Action</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+              <textarea
+                value={remarks}
+                onChange={handleRemarksChange}
+                className="w-full p-2 border rounded-md"
+                rows="2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
+              <input
+                type="file"
+                className="w-full text-sm text-gray-500"
+                onChange={handleFileChange}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowActionForm(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              {isGeneralActive && (
+                <button
+                  onClick={() => handleActionClick('start')}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                >
+                  Start Task
+                </button>
+              )}
+              {isInProgress && (
+                <>
+                  <button
+                    onClick={() => handleActionClick('pause')}
+                    className="px-4 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600"
+                  >
+                    Pause
+                  </button>
+                  <button
+                    onClick={() => handleActionClick('complete')}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                  >
+                    Complete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
 export default TaskCard;

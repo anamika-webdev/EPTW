@@ -1,214 +1,109 @@
 import React, { useState } from 'react';
 import api from '../services/api';
-import { TASK_STATUS } from '../utils/constants';
 
-const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({
+const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber }) => {
+  const [taskDetails, setTaskDetails] = useState({
+    worker_id: worker.user_id,
+    task_type: 'general',
+    status: 'active',
     site_id: '',
     assigned_area: '',
     task_description: '',
     implementation_date: '',
     implementation_time: '',
-    status: TASK_STATUS.ACTIVE,
-    task_type: 'general',
+    permit_number: permitNumber || '' // Set the permit number if provided
   });
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.site_id) newErrors.site_id = 'Site is required';
-    if (!formData.assigned_area.trim()) newErrors.assigned_area = 'Assigned area is required';
-    if (!formData.task_description.trim()) newErrors.task_description = 'Task description is required';
-    if (!formData.implementation_date) newErrors.implementation_date = 'Implementation date is required';
-    if (!formData.implementation_time) newErrors.implementation_time = 'Implementation time is required';
-    const selectedDate = new Date(formData.implementation_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      newErrors.implementation_date = 'Implementation date cannot be in the past';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setTaskDetails({ ...taskDetails, [name]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
-    setLoading(true);
     try {
       await api.createTask({
-        worker_id: worker.user_id,
-        ...formData,
+        ...taskDetails,
+        supervisor_id: 'SUP001' // This should be dynamically set from the auth context
       });
       onSuccess();
     } catch (error) {
-      console.error('Error creating task:', error);
       alert('Failed to assign task. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Task assignment error:', error);
     }
   };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const selectedSite = sites.find(site => site.site_id === formData.site_id);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg w-full max-w-lg max-h-96 overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800">Assign Task</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <h4 className="font-semibold text-blue-800 mb-2">Assigning to:</h4>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {worker.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'W'}
-            </div>
-            <div>
-              <div className="font-medium">{worker.name}</div>
-              <div className="text-sm text-gray-600">{worker.user_id} • {worker.domain || 'N/A'}</div>
-            </div>
-          </div>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Site *</label>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+      <div className="relative p-8 bg-white w-full max-w-lg rounded-lg shadow-xl">
+        <h3 className="text-2xl font-bold mb-4">Assign Task to {worker.name}</h3>
+        {taskDetails.permit_number && (
+          <p className="mb-4 text-lg">Permit No: <span className="font-semibold">{taskDetails.permit_number}</span></p>
+        )}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="site_id" className="block text-sm font-medium text-gray-700">Site</label>
             <select
+              id="site_id"
               name="site_id"
-              value={formData.site_id}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.site_id ? 'border-red-500' : 'border-gray-300'
-              }`}
+              value={taskDetails.site_id}
+              onChange={handleChange}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               required
             >
-              <option value="">Select Site</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.site_id}>
-                  {site.site_name} - {site.location}
-                </option>
+              <option value="">Select a site</option>
+              {sites.map(site => (
+                <option key={site.site_id} value={site.site_id}>{site.site_name}</option>
               ))}
             </select>
-            {errors.site_id && <p className="text-red-500 text-xs mt-1">{errors.site_id}</p>}
           </div>
-
-          {selectedSite && (
-            <div className="bg-gray-50 p-3 rounded-lg text-sm">
-              <p><strong>Coordinates:</strong> {selectedSite.latitude}, {selectedSite.longitude}</p>
-              <p><strong>Location:</strong> {selectedSite.location}</p>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Area *</label>
+          <div className="mb-4">
+            <label htmlFor="assigned_area" className="block text-sm font-medium text-gray-700">Assigned Area</label>
             <input
               type="text"
+              id="assigned_area"
               name="assigned_area"
-              value={formData.assigned_area}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.assigned_area ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="e.g., Tower Section A, Ground Floor"
+              value={taskDetails.assigned_area}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
               required
             />
-            {errors.assigned_area && <p className="text-red-500 text-xs mt-1">{errors.assigned_area}</p>}
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Task Description *</label>
+          <div className="mb-4">
+            <label htmlFor="task_description" className="block text-sm font-medium text-gray-700">Task Description</label>
             <textarea
+              id="task_description"
               name="task_description"
-              value={formData.task_description}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.task_description ? 'border-red-500' : 'border-gray-300'
-              }`}
+              value={taskDetails.task_description}
+              onChange={handleChange}
               rows="3"
-              placeholder="Describe the task in detail..."
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
               required
-            />
-            {errors.task_description && <p className="text-red-500 text-xs mt-1">{errors.task_description}</p>}
+            ></textarea>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Implementation Date *</label>
-              <input
-                type="date"
-                name="implementation_date"
-                value={formData.implementation_date}
-                onChange={handleInputChange}
-                min={new Date().toISOString().split('T')[0]}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.implementation_date ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              />
-              {errors.implementation_date && <p className="text-red-500 text-xs mt-1">{errors.implementation_date}</p>}
+              <label htmlFor="implementation_date" className="block text-sm font-medium text-gray-700">Implementation Date</label>
+              <input type="date" id="implementation_date" name="implementation_date" value={taskDetails.implementation_date} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm" required />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Implementation Time *</label>
-              <input
-                type="time"
-                name="implementation_time"
-                value={formData.implementation_time}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.implementation_time ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              />
-              {errors.implementation_time && <p className="text-red-500 text-xs mt-1">{errors.implementation_time}</p>}
+              <label htmlFor="implementation_time" className="block text-sm font-medium text-gray-700">Implementation Time</label>
+              <input type="time" id="implementation_time" name="implementation_time" value={taskDetails.implementation_time} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm" required />
             </div>
           </div>
-
-          <div className="flex gap-3 pt-4">
+          <div className="flex justify-end gap-2 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium disabled:opacity-50 transition-colors duration-200"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Assigning...
-                </div>
-              ) : (
-                'Assign Task'
-              )}
+              Assign Task
             </button>
           </div>
         </form>

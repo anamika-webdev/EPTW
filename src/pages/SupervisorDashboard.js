@@ -1,4 +1,3 @@
-// src/pages/SupervisorDashboard.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileDropdown } from '../components/ProfileDropdown';
@@ -20,6 +19,7 @@ const SupervisorDashboard = () => {
   const [selectedWorkerForPTW, setSelectedWorkerForPTW] = useState(null);
   const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
   const [notifications, setNotifications] = useState(0);
+  const [nextPermitNumber, setNextPermitNumber] = useState('');
 
   const loadWorkers = async () => {
     try {
@@ -92,22 +92,36 @@ const SupervisorDashboard = () => {
     }
   };
   
-  const handleRegularTaskAssign = (worker) => {
+  const handleRegularTaskAssign = async (worker) => {
     if (!worker.is_available) {
       alert('This worker is currently busy with another task.');
       return;
     }
-    setSelectedWorker(worker);
-    setShowTaskForm(true);
+    try {
+      const ptwNumber = await api.getNextPermitNumber();
+      setNextPermitNumber(ptwNumber.permit_number);
+      setSelectedWorker(worker);
+      setShowTaskForm(true);
+    } catch (error) {
+      alert('Failed to generate permit number.');
+      console.error('Error fetching permit number:', error);
+    }
   };
   
-  const handleInitiatePTW = (worker) => {
+  const handleInitiatePTW = async (worker) => {
     if (!worker.is_available) {
       alert('This worker is currently busy with another task.');
       return;
     }
-    setSelectedWorkerForPTW(worker);
-    setShowPTWForm(true);
+    try {
+      const ptwNumber = await api.getNextPermitNumber();
+      setNextPermitNumber(ptwNumber.permit_number);
+      setSelectedWorkerForPTW(worker);
+      setShowPTWForm(true);
+    } catch (error) {
+      alert('Failed to generate permit number.');
+      console.error('Error fetching permit number:', error);
+    }
   };
   
   const handleAuthorizePTW = async (task, authorizationData) => {
@@ -214,8 +228,8 @@ const SupervisorDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 bg-white rounded-lg shadow-md">
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-md">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800">Workers Management</h3>
             <p className="text-sm text-gray-600 mt-1">Assign tasks to available workers</p>
@@ -303,99 +317,75 @@ const SupervisorDashboard = () => {
             </table>
           </div>
         </div>
-
-        <div className="xl:col-span-1 space-y-6">
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Recent Assigned Tasks</h3>
-              <p className="text-sm text-gray-600 mt-1">General tasks you've assigned to workers</p>
-            </div>
-            <div className="p-4 max-h-48 overflow-y-auto">
-              {assignedTasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📋</div>
-                  <p>No general tasks assigned yet</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {assignedTasks.map((task) => (
-                    <div key={task.id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                      <p className="font-semibold text-gray-800">{task.task_id}</p>
-                      <p className="text-sm text-gray-600">Worker: {task.worker_name}</p>
-                      <p className="text-sm text-gray-600">Site: {task.site_name}</p>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        task.status === 'active' ? 'bg-yellow-100 text-yellow-800' :
-                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {task.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        
+        <div className="bg-white rounded-lg shadow-md">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-800">Recent Tasks</h3>
+            <p className="text-sm text-gray-600 mt-1">Tasks you've assigned</p>
           </div>
-          
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">PTW Authorization Requests</h3>
-              <p className="text-sm text-gray-600 mt-1">Permit to Work requests pending your approval</p>
-            </div>
-            <div className="p-4 max-h-48 overflow-y-auto">
-              {ptwTasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📄</div>
-                  <p>No PTW authorization requests pending</p>
-                </div>
-              ) : (
-                <table className="min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Permit No.</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Worker</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Action</th>
+          <div className="p-4 overflow-x-auto max-h-96">
+            {tasks.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <div className="text-4xl mb-2">📋</div>
+                <p>No tasks assigned yet</p>
+              </div>
+            ) : (
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Time</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Task ID</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Permit No.</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Site</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Worker Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tasks.map((task) => (
+                    <tr key={task.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                        {new Date(task.created_at).toLocaleTimeString()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{task.task_id}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{task.permit_number || 'N/A'}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{task.site_name}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{task.worker_name}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          task.status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                          task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          task.status === 'ptw_initiated' ? 'bg-orange-100 text-orange-800' :
+                          task.status === 'ptw_submitted' ? 'bg-purple-100 text-purple-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {task.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm flex gap-2">
+                        {task.status === 'ptw_submitted' && (
+                          <>
+                            <button
+                              onClick={() => setPtwToAuthorize(task)}
+                              className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded"
+                            >
+                              Authorize
+                            </button>
+                            <button
+                              onClick={() => handleCancelPTW(task)}
+                              className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {ptwTasks.map((task) => (
-                      <tr key={task.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{task.permit_number}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{task.worker_name}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            task.status === 'ptw_initiated' ? 'bg-orange-100 text-orange-800' :
-                            task.status === 'ptw_submitted' ? 'bg-purple-100 text-purple-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {task.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm flex gap-2">
-                          {task.status === 'ptw_submitted' && (
-                            <>
-                              <button
-                                onClick={() => setPtwToAuthorize(task)}
-                                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 rounded"
-                              >
-                                Authorize
-                              </button>
-                              <button
-                                onClick={() => handleCancelPTW(task)}
-                                className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
@@ -409,6 +399,7 @@ const SupervisorDashboard = () => {
             setSelectedWorker(null);
           }}
           onSuccess={handleTaskAssigned}
+          permitNumber={nextPermitNumber}
         />
       )}
       
@@ -418,6 +409,7 @@ const SupervisorDashboard = () => {
           sites={sites}
           onClose={() => setShowPTWForm(false)}
           onAssignTask={handleCreateTask}
+          permitNumber={nextPermitNumber}
         />
       )}
       

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileDropdown } from '../components/ProfileDropdown';
 import TaskCard from '../components/TaskCard';
@@ -12,59 +12,46 @@ const WorkerDashboard = () => {
   const [notifications, setNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedPtwTask, setSelectedPtwTask] = useState(null);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  const loadData = async () => {
+  
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        loadTasks(),
-        loadNotifications()
-      ]);
+      const data = await api.getTasks({ worker_id: user.user_id });
+      setTasks(data);
+      const notificationsData = await api.getActiveTasksCount(user.user_id);
+      setNotifications(notificationsData.count);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const loadTasks = async () => {
-    try {
-      const data = await api.getTasks({ worker_id: user.user_id });
-      setTasks(data);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
+  useEffect(() => {
+    if (user) {
+      loadData();
+      const interval = setInterval(loadData, 30000);
+      return () => clearInterval(interval);
     }
-  };
+  }, [user, loadData]);
 
-  const loadNotifications = async () => {
-    try {
-      const data = await api.getActiveTasksCount(user.user_id);
-      setNotifications(data.count);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-      setNotifications(0);
-    }
-  };
-
-  const handleTaskAction = async (taskId, action, file = null) => {
+  const handleTaskAction = async (taskId, action, file = null, remarks = '') => {
     const formData = new FormData();
     formData.append('action', action);
     if (file) {
       formData.append('image', file);
     }
-
+    if (remarks) {
+      formData.append('remarks', remarks);
+    }
     try {
       await api.updateTaskStatus(taskId, formData);
       await loadData();
     } catch (error) {
       console.error('Error updating task:', error);
-      throw error;
+      alert('Failed to update task. Please try again.');
+    } finally {
+      setSelectedPtwTask(null);
     }
   };
   
@@ -83,7 +70,6 @@ const WorkerDashboard = () => {
     setSelectedPtwTask(task);
   };
   
-
   const getFilteredTasks = () => {
     switch (activeTab) {
       case 'active':

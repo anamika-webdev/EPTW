@@ -179,16 +179,6 @@ const PTWFormWorker = ({ task, onComplete }) => {
             </div>
             <div>
               <input
-                type="text"
-                className="w-full px-2 py-1 border rounded-lg text-sm"
-                placeholder="Remarks"
-                name={`${category}_${param.key}_remarks`}
-                value={formData[category][`${param.key}_remarks`] || ''}
-                onChange={handleRemarksChange}
-              />
-            </div>
-            <div>
-              <input
                 type="file"
                 className="w-full text-xs text-gray-500"
                 onChange={(e) => handleFileChange(category, param.key, e.target.files[0])}

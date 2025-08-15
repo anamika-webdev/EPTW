@@ -1,5 +1,4 @@
-// src/services/api.js
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { API_CONFIG } from '../utils/constants';
 
 class ApiService {
   async request(endpoint, options = {}) {
@@ -19,7 +18,7 @@ class ApiService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, config);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -167,6 +166,11 @@ class ApiService {
       method: 'PUT',
       body: data
     });
+  }
+
+  // New method to get the next permit number
+  getNextPermitNumber() {
+    return this.request('/tasks/next-permit-number');
   }
 
   // New method to cancel a PTW
