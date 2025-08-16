@@ -6,8 +6,9 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     worker_id: worker.user_id,
     task_type: permitNumber ? 'ptw' : 'general',
     status: 'active',
-    // Pre-populate site_id if available
+    // Pre-populate site_id and site_name if available
     site_id: preselectedSite?.site_id || '',
+    site_name: preselectedSite?.site_name || '',
     assigned_area: '',
     task_description: '',
     implementation_date: '',
@@ -20,7 +21,8 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     if (preselectedSite) {
       setTaskDetails(prevDetails => ({
         ...prevDetails,
-        site_id: preselectedSite.site_id
+        site_id: preselectedSite.site_id,
+        site_name: preselectedSite.site_name,
       }));
     }
   }, [preselectedSite]);

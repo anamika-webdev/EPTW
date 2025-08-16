@@ -20,8 +20,8 @@ const SupervisorDashboard = () => {
   const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
   const [notifications, setNotifications] = useState(0);
   const [nextPermitNumber, setNextPermitNumber] = useState('');
-  // Added state to hold site details to pass to the form
   const [preselectedSite, setPreselectedSite] = useState(null); 
+  const [prefilledTaskDetails, setPrefilledTaskDetails] = useState(null);
 
   const loadWorkers = async () => {
     try {
@@ -103,7 +103,8 @@ const SupervisorDashboard = () => {
       const ptwNumber = await api.getNextPermitNumber();
       setNextPermitNumber(ptwNumber.permit_number);
       setSelectedWorker(worker);
-      setPreselectedSite(null); // Clear any pre-selected site
+      setPreselectedSite(null);
+      setPrefilledTaskDetails(null);
       setShowTaskForm(true);
     } catch (error) {
       alert('Failed to generate permit number.');
@@ -134,10 +135,12 @@ const SupervisorDashboard = () => {
       const workerToAssign = workers.find(worker => worker.user_id === task.worker_id);
       if (workerToAssign) {
         setSelectedWorker(workerToAssign);
-        // Pass the authorized PTW's permit number to the new task form.
         setNextPermitNumber(task.permit_number);
-        // Pass the site details to the new task form
         setPreselectedSite({ site_id: task.site_id, site_name: task.site_name });
+        setPrefilledTaskDetails({
+          assigned_area: task.location_of_work,
+          task_description: task.work_description,
+        });
         setShowTaskForm(true);
       }
       
@@ -165,7 +168,8 @@ const SupervisorDashboard = () => {
     setSelectedWorker(null);
     setShowPTWForm(false);
     setSelectedWorkerForPTW(null);
-    setPreselectedSite(null); // Clear selected site on success
+    setPreselectedSite(null);
+    setPrefilledTaskDetails(null);
     loadData();
   };
 
@@ -325,7 +329,7 @@ const SupervisorDashboard = () => {
             </table>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-md">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-semibold text-gray-800">Recent Tasks</h3>
@@ -409,6 +413,7 @@ const SupervisorDashboard = () => {
           onSuccess={handleTaskAssigned}
           permitNumber={nextPermitNumber}
           preselectedSite={preselectedSite}
+          prefilledDetails={prefilledTaskDetails}
         />
       )}
       

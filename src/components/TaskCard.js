@@ -26,6 +26,10 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
   const isPtwReady = task.task_type === 'ptw' && task.status === 'ptw_initiated';
   const isActiveOrInProgress = task.status === 'active' || task.status === 'in_progress';
 
+  // Conditional logic to display the correct location and description
+  const displayLocation = task.task_type === 'ptw' ? task.location_of_work : task.assigned_area;
+  const displayDescription = task.task_type === 'ptw' ? task.work_description : task.task_description;
+
   return (
     <div className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${statusColorClass.border}`}>
       <div className="flex justify-between items-start">
@@ -43,8 +47,8 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
           <p><strong>Permit No:</strong> {task.permit_number}</p>
         )}
         <p><strong>Site:</strong> {task.site_name || 'N/A'}</p>
-        <p><strong>Location:</strong> {task.location_of_work || task.site_location || 'N/A'}</p>
-        <p><strong>Description:</strong> {task.task_description || task.work_description}</p>
+        <p><strong>Location:</strong> {displayLocation || 'N/A'}</p>
+        <p><strong>Description:</strong> {displayDescription || 'N/A'}</p>
         <p><strong>Assigned By:</strong> {task.supervisor_name}</p>
       </div>
 

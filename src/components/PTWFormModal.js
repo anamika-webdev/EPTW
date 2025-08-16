@@ -19,7 +19,16 @@ const PTWFormModal = ({ worker, sites, onClose, onAssignTask, permitNumber }) =>
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setTaskDetails({ ...taskDetails, [name]: value });
+    if (name === 'site_id') {
+      const selectedSite = sites.find(site => site.site_id === value);
+      setTaskDetails(prevDetails => ({
+        ...prevDetails,
+        site_id: value,
+        site_name: selectedSite ? selectedSite.site_name : ''
+      }));
+    } else {
+      setTaskDetails({ ...taskDetails, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
