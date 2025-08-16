@@ -24,8 +24,7 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
 
   const statusColorClass = TASK_STATUS_COLORS[task.status] || TASK_STATUS_COLORS.active;
   const isPtwReady = task.task_type === 'ptw' && task.status === 'ptw_initiated';
-  const isGeneralActive = task.task_type !== 'ptw' && task.status === 'active';
-  const isInProgress = task.status === 'in_progress';
+  const isActiveOrInProgress = task.status === 'active' || task.status === 'in_progress';
 
   return (
     <div className={`bg-white p-6 rounded-lg shadow-md border-l-4 ${statusColorClass.border}`}>
@@ -59,7 +58,7 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
           </button>
         )}
         
-        {(isGeneralActive || isInProgress) && !showActionForm && (
+        {isActiveOrInProgress && !showActionForm && (
           <button
             onClick={() => setShowActionForm(true)}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
@@ -95,7 +94,7 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
               >
                 Cancel
               </button>
-              {isGeneralActive && (
+              {task.status === 'active' && (
                 <button
                   onClick={() => handleActionClick('start')}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
@@ -103,7 +102,7 @@ const TaskCard = ({ task, onAction, onPtwInitiate }) => {
                   Start Task
                 </button>
               )}
-              {isInProgress && (
+              {task.status === 'in_progress' && (
                 <>
                   <button
                     onClick={() => handleActionClick('pause')}

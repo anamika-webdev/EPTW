@@ -20,6 +20,8 @@ const SupervisorDashboard = () => {
   const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
   const [notifications, setNotifications] = useState(0);
   const [nextPermitNumber, setNextPermitNumber] = useState('');
+  // Added state to hold site details to pass to the form
+  const [preselectedSite, setPreselectedSite] = useState(null); 
 
   const loadWorkers = async () => {
     try {
@@ -101,6 +103,7 @@ const SupervisorDashboard = () => {
       const ptwNumber = await api.getNextPermitNumber();
       setNextPermitNumber(ptwNumber.permit_number);
       setSelectedWorker(worker);
+      setPreselectedSite(null); // Clear any pre-selected site
       setShowTaskForm(true);
     } catch (error) {
       alert('Failed to generate permit number.');
@@ -131,6 +134,10 @@ const SupervisorDashboard = () => {
       const workerToAssign = workers.find(worker => worker.user_id === task.worker_id);
       if (workerToAssign) {
         setSelectedWorker(workerToAssign);
+        // Pass the authorized PTW's permit number to the new task form.
+        setNextPermitNumber(task.permit_number);
+        // Pass the site details to the new task form
+        setPreselectedSite({ site_id: task.site_id, site_name: task.site_name });
         setShowTaskForm(true);
       }
       
@@ -158,6 +165,7 @@ const SupervisorDashboard = () => {
     setSelectedWorker(null);
     setShowPTWForm(false);
     setSelectedWorkerForPTW(null);
+    setPreselectedSite(null); // Clear selected site on success
     loadData();
   };
 
@@ -400,6 +408,7 @@ const SupervisorDashboard = () => {
           }}
           onSuccess={handleTaskAssigned}
           permitNumber={nextPermitNumber}
+          preselectedSite={preselectedSite}
         />
       )}
       

@@ -5,6 +5,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('supervisors');
   const [users, setUsers] = useState([]);
   const [sites, setSites] = useState([]);
+  const [ptws, setPtws] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editingSite, setEditingSite] = useState(null);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -22,7 +23,8 @@ const AdminDashboard = () => {
       await Promise.all([
         loadUsers(),
         loadSites(),
-        loadStats()
+        loadStats(),
+        loadPtws()
       ]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -46,6 +48,15 @@ const AdminDashboard = () => {
       setSites(data);
     } catch (error) {
       console.error('Error loading sites:', error);
+    }
+  };
+  
+  const loadPtws = async () => {
+    try {
+      const data = await api.getAuthorizedPTWs();
+      setPtws(data);
+    } catch (error) {
+      console.error('Error loading PTW authorizations:', error);
     }
   };
 
@@ -163,7 +174,7 @@ const AdminDashboard = () => {
       <div className="bg-white rounded-lg shadow-md">
         <div className="border-b">
           <nav className="flex">
-            {['supervisors', 'workers', 'sites'].map((tab) => (
+            {['supervisors', 'workers', 'sites', 'ptw'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -177,6 +188,8 @@ const AdminDashboard = () => {
                 <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs">
                   {tab === 'sites' 
                     ? sites.length 
+                    : tab === 'ptw'
+                    ? ptws.length
                     : users.filter(user => user.user_type === tab.slice(0, -1)).length
                   }
                 </span>
@@ -215,6 +228,10 @@ const AdminDashboard = () => {
               onDelete={handleDeleteSite}
               onAdd={() => setShowAddSite(true)}
             />
+          )}
+          
+          {activeTab === 'ptw' && (
+            <PTWManagement ptws={ptws} />
           )}
         </div>
       </div>
@@ -389,6 +406,49 @@ const SiteManagement = ({ sites, onEdit, onDelete, onAdd }) => (
         </tbody>
       </table>
     </div>
+  </div>
+);
+
+// New PTW Management Component
+const PTWManagement = ({ ptws }) => (
+  <div>
+    <div className="flex justify-between items-center mb-6">
+      <h3 className="text-xl font-semibold text-gray-800">PTW Authorizations</h3>
+    </div>
+    
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse bg-white">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Permit No.</th>
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Site</th>
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Work Description</th>
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Worker</th>
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Authorized By</th>
+            <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ptws.map((ptw) => (
+            <tr key={ptw.task_id} className="hover:bg-gray-50">
+              <td className="border border-gray-200 px-4 py-3 text-sm font-medium">{ptw.permit_number}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm">{ptw.site_name}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm">{ptw.work_description}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm">{ptw.worker_name}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm">{ptw.supervisor_name}</td>
+              <td className="border border-gray-200 px-4 py-3 text-sm">{new Date(ptw.authorization_date).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    
+    {ptws.length === 0 && (
+      <div className="text-center py-8 text-gray-500">
+        <div className="text-4xl mb-4">📭</div>
+        <p>No PTW authorizations found.</p>
+      </div>
+    )}
   </div>
 );
 

@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
-const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber }) => {
+const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, preselectedSite }) => {
   const [taskDetails, setTaskDetails] = useState({
     worker_id: worker.user_id,
     task_type: permitNumber ? 'ptw' : 'general',
     status: 'active',
-    site_id: '',
+    // Pre-populate site_id if available
+    site_id: preselectedSite?.site_id || '',
     assigned_area: '',
     task_description: '',
     implementation_date: '',
     implementation_time: '',
     permit_number: permitNumber || ''
   });
+  
+  // This useEffect ensures the site_id is updated when preselectedSite changes
+  useEffect(() => {
+    if (preselectedSite) {
+      setTaskDetails(prevDetails => ({
+        ...prevDetails,
+        site_id: preselectedSite.site_id
+      }));
+    }
+  }, [preselectedSite]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,10 +32,16 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Find the selected site_name based on the site_id
+    const selectedSite = sites.find(site => site.site_id === taskDetails.site_id);
+    const siteName = selectedSite ? selectedSite.site_name : '';
+
     try {
       await api.createTask({
         ...taskDetails,
-        supervisor_id: 'SUP001' // This should be dynamically set from the auth context
+        supervisor_id: 'SUP001',
+        permit_number: permitNumber,
+        site_name: siteName // Ensure site_name is included in the payload
       });
       onSuccess();
     } catch (error) {
