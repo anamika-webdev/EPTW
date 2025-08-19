@@ -5,6 +5,8 @@ import api from '../services/api';
 import PTWFormModal from '../components/PTWFormModal';
 import PTWFinalAuthorizationModal from '../components/PTWFinalAuthorizationModal';
 import TaskAssignmentForm from '../components/TaskAssignmentForm';
+import PTWDetailsModal from '../components/PTWDetailsModal';
+import TaskDetailsModal from '../components/TaskDetailsModal';
 import { TASK_STATUS_COLORS } from '../utils/constants';
 
 const SupervisorDashboard = () => {
@@ -18,10 +20,16 @@ const SupervisorDashboard = () => {
   const [showPTWForm, setShowPTWForm] = useState(false);
   const [selectedWorkerForPTW, setSelectedWorkerForPTW] = useState(null);
   const [ptwToAuthorize, setPtwToAuthorize] = useState(null);
-  const [notifications, setNotifications] = useState(0);
+  const [notifications, setNotifications] = useState([]);
   const [nextPermitNumber, setNextPermitNumber] = useState('');
-  const [preselectedSite, setPreselectedSite] = useState(null); 
+  const [nextTaskNumber, setNextTaskNumber] = useState('');
+  const [preselectedSite, setPreselectedSite] = useState(null);
   const [prefilledTaskDetails, setPrefilledTaskDetails] = useState(null);
+  const [authorizedPermitNumber, setAuthorizedPermitNumber] = useState('');
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [taskForAssignment, setTaskForAssignment] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null);
+  const [viewingPtw, setViewingPtw] = useState(null);
 
   const loadWorkers = async () => {
     try {
@@ -45,29 +53,17 @@ const SupervisorDashboard = () => {
     try {
       const data = await api.getTasks({ supervisor_id: user.user_id });
       setTasks(data);
+      const submittedPtw = data.filter(task => task.status === 'ptw_submitted');
+      setNotifications(submittedPtw);
     } catch (error) {
       console.error('Error loading tasks:', error);
-    }
-  };
-
-  const loadNotifications = async () => {
-    try {
-      const data = await api.getActiveTasksCount(user.user_id);
-      setNotifications(data.count);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-      setNotifications(0);
     }
   };
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        loadWorkers(),
-        loadSites(),
-        loadTasks()
-      ]);
+      await Promise.all([loadWorkers(), loadSites(), loadTasks()]);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -77,15 +73,24 @@ const SupervisorDashboard = () => {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadNotifications, 30000);
+    const interval = setInterval(loadTasks, 30000); // Refresh tasks for notifications
     return () => clearInterval(interval);
   }, [user, loadData]);
 
   const handleCreateTask = async (taskData) => {
     try {
+      const numberResponse = await api.getNextPermitNumber();
+      let taskId;
+      if (taskData.task_type === 'ptw') {
+        taskId = numberResponse.request_number;
+      } else {
+        taskId = numberResponse.task_number;
+      }
+
       await api.createTask({
         supervisor_id: user.user_id,
         ...taskData,
+        task_id: taskId,
       });
       loadData();
     } catch (error) {
@@ -93,60 +98,72 @@ const SupervisorDashboard = () => {
       throw error;
     }
   };
-  
+
   const handleRegularTaskAssign = async (worker) => {
     if (!worker.is_available) {
       alert('This worker is currently busy with another task.');
       return;
     }
-    setNextPermitNumber(''); 
+    const numberResponse = await api.getNextPermitNumber();
+    setNextTaskNumber(numberResponse.task_number);
     setSelectedWorker(worker);
     setPreselectedSite(null);
     setPrefilledTaskDetails(null);
     setShowTaskForm(true);
   };
-  
+
   const handleInitiatePTW = async (worker) => {
     if (!worker.is_available) {
       alert('This worker is currently busy with another task.');
       return;
     }
-    setNextPermitNumber(''); 
+    const numberResponse = await api.getNextPermitNumber();
+    setNextPermitNumber(numberResponse.request_number);
     setSelectedWorkerForPTW(worker);
     setShowPTWForm(true);
   };
-  
+
   const handleAuthorizePTW = async (task, authorizationData) => {
     try {
-      const ptwNumberResponse = await api.getNextPermitNumber();
-      const permitNumber = ptwNumberResponse.permit_number;
-  
+      const numberResponse = await api.getNextPermitNumber();
+      const permitNumber = numberResponse.permit_number;
+
       await api.authorizePtw(task.task_id, {
         ...authorizationData,
         permit_number: permitNumber,
       });
-      
-      const workerToAssign = workers.find(worker => worker.user_id === task.worker_id);
-      if (workerToAssign) {
-        setSelectedWorker(workerToAssign);
-        setNextPermitNumber(permitNumber);
-        setPreselectedSite({ site_id: task.site_id, site_name: task.site_name });
-        setPrefilledTaskDetails({
-          assigned_area: task.location_of_work,
-          task_description: task.work_description,
-        });
-        setShowTaskForm(true);
-      }
-      
+
+      setAuthorizedPermitNumber(permitNumber);
+      setTaskForAssignment(task);
+      setShowSuccessPopup(true);
       setPtwToAuthorize(null);
+      loadData();
     } catch (error) {
       console.error('Error authorizing PTW:', error);
       throw error;
     }
   };
+  
+  const openTaskAssignmentFromPopup = () => {
+      setShowSuccessPopup(false);
+      const workerToAssign = workers.find(w => w.user_id === taskForAssignment.worker_id);
+      if (workerToAssign) {
+          api.getNextPermitNumber().then(res => {
+              setNextTaskNumber(res.task_number);
+              setSelectedWorker(workerToAssign);
+              setPreselectedSite({ site_id: taskForAssignment.site_id, site_name: taskForAssignment.site_name });
+              setPrefilledTaskDetails({
+                  assigned_area: taskForAssignment.location_of_work,
+                  task_description: taskForAssignment.work_description,
+                  permit_number: authorizedPermitNumber,
+              });
+              setShowTaskForm(true);
+          });
+      }
+  };
 
   const handleCancelPTW = async (task) => {
-    if (window.confirm(`Are you sure you want to cancel the PTW for Permit No. ${task.permit_number}?`)) {
+    if (window.confirm(`Are you sure you want to cancel the PTW for Request No. ${task.task_id}?`)) {
       try {
         await api.cancelPtw(task.task_id);
         loadData();
@@ -164,7 +181,28 @@ const SupervisorDashboard = () => {
     setSelectedWorkerForPTW(null);
     setPreselectedSite(null);
     setPrefilledTaskDetails(null);
+    setTaskForAssignment(null);
     loadData();
+  };
+
+  const handleViewTask = async (task) => {
+    try {
+      const detailedTask = await api.getTaskDetails(task.task_id);
+      setViewingTask(detailedTask);
+    } catch (error) {
+      console.error('Error fetching task details:', error);
+      alert('Could not load task details.');
+    }
+  };
+
+  const handleViewPtw = async (ptw) => {
+    try {
+      const detailedPtw = await api.getTaskDetails(ptw.task_id);
+      setViewingPtw(detailedPtw);
+    } catch (error) {
+      console.error('Error fetching PTW details:', error);
+      alert('Could not load PTW details.');
+    }
   };
 
   if (loading) {
@@ -175,17 +213,24 @@ const SupervisorDashboard = () => {
     );
   }
   
-  const assignedTasks = tasks.filter(task => task.task_type !== 'ptw');
+  const assignedTasks = tasks.filter(task => task.task_type !== 'ptw' );
   const ptwTasks = tasks.filter(task => task.task_type === 'ptw');
 
   return (
-    // Set a max height for the whole container to prevent body scroll
     <div className="p-4 max-w-screen-2xl mx-auto h-screen flex flex-col">
-      <div className="flex-shrink-0">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Supervisor Dashboard</h2>
-          <ProfileDropdown position="right" />
-        </div>
+       <div className="flex-shrink-0">
+         <div className="flex justify-between items-center mb-4">
+           <h2 className="text-2xl font-bold text-gray-800">Supervisor Dashboard</h2>
+           <div className="flex items-center">
+             <div className="relative mr-4">
+               <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+               {notifications.length > 0 && (
+                 <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">{notifications.length}</span>
+               )}
+             </div>
+             <ProfileDropdown position="right" />
+           </div>
+         </div>
         
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -208,10 +253,8 @@ const SupervisorDashboard = () => {
         </div>
       </div>
 
-      {/* Main content area - tables */}
       <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden">
         
-        {/* Left Column: Workers Management */}
         <div className="bg-white rounded-lg shadow-md flex flex-col">
           <div className="p-4 border-b border-gray-200 flex-shrink-0">
             <h3 className="text-lg font-semibold text-gray-800">Workers Management</h3>
@@ -256,43 +299,10 @@ const SupervisorDashboard = () => {
           </div>
         </div>
 
-        {/* Right Column: Task Tables */}
         <div className="flex flex-col gap-4 overflow-hidden">
-          {/* Recent Tasks Table */}
           <div className="bg-white rounded-lg shadow-md flex flex-col h-1/2">
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-800">Recent Tasks</h3>
-            </div>
-            <div className="overflow-auto flex-grow">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Task ID</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Worker</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {assignedTasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{task.task_id}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{task.worker_name}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs ${TASK_STATUS_COLORS[task.status]?.bg} ${TASK_STATUS_COLORS[task.status]?.text}`}>
-                          {task.status.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Permit to Work (PTW) Table */}
-          <div className="bg-white rounded-lg shadow-md flex flex-col h-1/2">
-            <div className="p-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-800">Permit to Work (PTW)</h3>
             </div>
             <div className="overflow-auto flex-grow">
               <table className="min-w-full">
@@ -305,7 +315,7 @@ const SupervisorDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {ptwTasks.map((task) => (
+                  {assignedTasks.map((task) => (
                     <tr key={task.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-sm font-medium text-gray-900">{task.task_id}</td>
                       <td className="px-4 py-2 text-sm text-gray-600">{task.worker_name}</td>
@@ -314,7 +324,42 @@ const SupervisorDashboard = () => {
                           {task.status.replace('_', ' ').toUpperCase()}
                         </span>
                       </td>
+                      <td className="px-4 py-2 text-sm">
+                        <button onClick={() => handleViewTask(task)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">View</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md flex flex-col h-1/2">
+            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-800">Permit to Work (PTW)</h3>
+            </div>
+            <div className="overflow-auto flex-grow">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Request No.</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Worker</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {ptwTasks.map((task) => (
+                    <tr key={task.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{task.task_id}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{task.worker_name}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${TASK_STATUS_COLORS[task.status]?.bg} ${TASK_STATUS_COLORS[task.status]?.text}`}>
+                          {task.status.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                      </td>
                       <td className="px-4 py-2 text-sm flex gap-2">
+                        <button onClick={() => handleViewPtw(task)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">View</button>
                         {task.status === 'ptw_submitted' && (
                           <>
                             <button onClick={() => setPtwToAuthorize(task)} className="bg-green-600 text-white text-xs px-3 py-1 rounded">Authorize</button>
@@ -337,7 +382,7 @@ const SupervisorDashboard = () => {
           sites={sites}
           onClose={() => {setShowTaskForm(false); setSelectedWorker(null);}}
           onSuccess={handleTaskAssigned}
-          permitNumber={nextPermitNumber}
+          taskNumber={nextTaskNumber}
           preselectedSite={preselectedSite}
           prefilledDetails={prefilledTaskDetails}
         />
@@ -349,7 +394,7 @@ const SupervisorDashboard = () => {
           sites={sites}
           onClose={() => setShowPTWForm(false)}
           onAssignTask={handleCreateTask}
-          permitNumber={nextPermitNumber}
+          requestNumber={nextPermitNumber}
         />
       )}
       
@@ -359,6 +404,29 @@ const SupervisorDashboard = () => {
           onClose={() => setPtwToAuthorize(null)}
           onAuthorize={handleAuthorizePTW}
         />
+      )}
+
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl text-center">
+            <h3 className="text-xl font-bold mb-2">Permit Authorized!</h3>
+            <p className="mb-4">Permit Number: <span className="font-semibold">{authorizedPermitNumber}</span> has been generated.</p>
+            <button
+              onClick={openTaskAssignmentFromPopup}
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Assign Task
+            </button>
+          </div>
+        </div>
+      )}
+
+      {viewingTask && (
+        <TaskDetailsModal task={viewingTask} onClose={() => setViewingTask(null)} />
+      )}
+
+      {viewingPtw && (
+        <PTWDetailsModal ptw={viewingPtw} onClose={() => setViewingPtw(null)} />
       )}
     </div>
   );

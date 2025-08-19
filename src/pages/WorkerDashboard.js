@@ -1,64 +1,67 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileDropdown } from '../components/ProfileDropdown';
 import TaskCard from '../components/TaskCard';
 import PTWFormWorker from '../components/PTWFormWorker';
+import TaskActionsModal from '../components/TaskActionsModal';
 import api from '../services/api';
 
 const WorkerDashboard = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('active');
-  const [notifications, setNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedPtwTask, setSelectedPtwTask] = useState(null);
-  
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const [selectedTaskForAction, setSelectedTaskForAction] = useState(null);
+  const intervalRef = useRef(null);
+
+  const loadData = useCallback(async (isInitialLoad = false) => {
+    if(isInitialLoad) setLoading(true);
     try {
       const data = await api.getTasks({ worker_id: user.user_id });
       setTasks(data);
-      const notificationsData = await api.getActiveTasksCount(user.user_id);
-      setNotifications(notificationsData.count);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
-      setLoading(false);
+      if(isInitialLoad) setLoading(false);
     }
   }, [user]);
 
+  // Effect to handle data polling
   useEffect(() => {
     if (user) {
-      loadData();
-      const interval = setInterval(loadData, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user, loadData]);
+      loadData(true); // Initial load
 
-  const handleTaskAction = async (taskId, action, file = null, remarks = '') => {
-    const formData = new FormData();
-    formData.append('action', action);
-    if (file) {
-      formData.append('image', file);
+      // Clear any existing interval
+      if (intervalRef.current) clearInterval(intervalRef.current);
+
+      // Start polling only when no modal is open
+      if (!selectedPtwTask && !selectedTaskForAction) {
+        intervalRef.current = setInterval(() => loadData(false), 30000);
+      }
     }
-    if (remarks) {
-      formData.append('remarks', remarks);
-    }
+    // Cleanup interval on component unmount
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [user, loadData, selectedPtwTask, selectedTaskForAction]);
+  
+  const handleTaskAction = async (taskId, formData) => {
     try {
       await api.updateTaskStatus(taskId, formData);
-      await loadData();
+      await loadData(true); // Refresh data after action
     } catch (error) {
       console.error('Error updating task:', error);
       alert('Failed to update task. Please try again.');
     } finally {
-      setSelectedPtwTask(null);
+      setSelectedTaskForAction(null); // Close the modal
     }
   };
   
   const handlePtwFormCompletion = async (taskId, formData) => {
     try {
-      await api.updatePtwForm(taskId, formData);
-      await loadData();
+      await api.submitPtwForm(taskId, formData);
+      await loadData(true); // Refresh data after action
       setSelectedPtwTask(null);
     } catch (error) {
       console.error('Error completing PTW form:', error);
@@ -69,28 +72,30 @@ const WorkerDashboard = () => {
   const handlePtwInitiate = (task) => {
     setSelectedPtwTask(task);
   };
-  
+
   const getFilteredTasks = () => {
     switch (activeTab) {
       case 'active':
-        return tasks.filter(task => task.status === 'active');
+        return tasks.filter(task => task.status === 'active' || task.status === 'paused');
       case 'in_progress':
         return tasks.filter(task => task.status === 'in_progress');
       case 'completed':
         return tasks.filter(task => task.status === 'completed');
       case 'ptw_assigned':
-        return tasks.filter(task => task.task_type === 'ptw' && (task.status === 'ptw_submitted' || task.status === 'ptw_initiated'));
+        return tasks.filter(task => task.task_type === 'ptw' && !['completed', 'ptw_authorized'].includes(task.status));
       default:
         return tasks;
     }
   };
-
+  
   const getTaskCounts = () => {
+    const activeAndPaused = tasks.filter(task => ['active', 'paused'].includes(task.status)).length;
     return {
-      active: tasks.filter(task => task.status === 'active').length,
+      active: activeAndPaused,
       in_progress: tasks.filter(task => task.status === 'in_progress').length,
       completed: tasks.filter(task => task.status === 'completed').length,
-      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && (task.status === 'ptw_submitted' || task.status === 'ptw_initiated')).length,
+      ptw_assigned: tasks.filter(task => task.task_type === 'ptw' && !['completed', 'ptw_authorized'].includes(task.status)).length,
+      notifications: tasks.filter(task => ['active', 'in_progress', 'ptw_initiated'].includes(task.status)).length
     };
   };
 
@@ -120,14 +125,14 @@ const WorkerDashboard = () => {
                 <div className="text-3xl cursor-pointer hover:scale-110 transition-transform duration-200">
                   🔔
                 </div>
-                {notifications > 0 && (
+                {taskCounts.notifications > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-6 h-6 flex items-center justify-center font-bold notification-badge">
-                    {notifications}
+                    {taskCounts.notifications}
                   </span>
                 )}
                 <div className="text-center mt-1">
                   <div className="text-xs text-gray-600">Active Tasks</div>
-                  <div className="text-sm font-bold text-blue-600">{notifications}</div>
+                  <div className="text-sm font-bold text-blue-600">{taskCounts.notifications}</div>
                 </div>
               </div>
             </div>
@@ -139,7 +144,7 @@ const WorkerDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800">Active Tasks</h3>
                   <p className="text-3xl font-bold text-yellow-600">{taskCounts.active}</p>
-                  <p className="text-xs text-gray-500 mt-1">Ready to start</p>
+                  <p className="text-xs text-gray-500 mt-1">Ready to start or paused</p>
                 </div>
                 <div className="text-4xl">⚡</div>
               </div>
@@ -236,7 +241,7 @@ const WorkerDashboard = () => {
                     <TaskCard
                       key={task.id}
                       task={task}
-                      onAction={handleTaskAction}
+                      onUpdateClick={() => setSelectedTaskForAction(task)}
                       onPtwInitiate={handlePtwInitiate}
                     />
                   ))}
@@ -245,6 +250,14 @@ const WorkerDashboard = () => {
             </div>
           </div>
         </>
+      )}
+      
+      {selectedTaskForAction && (
+        <TaskActionsModal
+          task={selectedTaskForAction}
+          onClose={() => setSelectedTaskForAction(null)}
+          onAction={handleTaskAction}
+        />
       )}
     </div>
   );

@@ -1,4 +1,6 @@
 import { API_CONFIG } from '../utils/constants';
+import axios from 'axios';
+
 
 class ApiService {
   async request(endpoint, options = {}) {
@@ -131,6 +133,15 @@ class ApiService {
     return this.request(`/tasks/${id}`);
   }
 
+  /**
+   * Fetches detailed task information including its history.
+   * @param {string} taskId - The ID of the task.
+   * @returns {Promise<object>} A promise that resolves to the detailed task object.
+   */
+  getTaskDetails(taskId) {
+    return this.request(`/tasks/${taskId}/details`);
+  }
+
   createTask(data) {
     return this.request('/tasks', {
       method: 'POST',
@@ -152,7 +163,7 @@ class ApiService {
     });
   }
 
-  // New method for PTW form submission
+  // Method for PTW form submission
   updatePtwForm(taskId, formData) {
     return this.request(`/tasks/${taskId}/ptw-form`, {
       method: 'PUT',
@@ -160,7 +171,7 @@ class ApiService {
     });
   }
 
-  // New method for supervisor authorization
+  // Method for supervisor authorization
   authorizePtw(taskId, data) {
     return this.request(`/tasks/${taskId}/authorize`, {
       method: 'PUT',
@@ -168,19 +179,19 @@ class ApiService {
     });
   }
 
-  // New method to get the next permit number
+  // Method to get the next permit number
   getNextPermitNumber() {
     return this.request('/tasks/next-permit-number');
   }
 
-  // New method to cancel a PTW
+  // Method to cancel a PTW
   cancelPtw(taskId) {
     return this.request(`/tasks/${taskId}/cancel-ptw`, {
       method: 'PUT'
     });
   }
   
-  // New method to fetch all authorized PTWs
+  // Method to fetch all authorized PTWs
   getAuthorizedPTWs() {
     return this.request('/ptw-authorizations');
   }

@@ -16,9 +16,11 @@ export const USER_TYPES = {
 export const TASK_STATUS = {
   ACTIVE: 'active',
   IN_PROGRESS: 'in_progress',
+  PAUSED: 'paused', // Added new status
   COMPLETED: 'completed',
-  PTW_INITIATED: 'ptw_initiated', // Added new status for PTW
-  PTW_SUBMITTED: 'ptw_submitted', // Added new status for PTW
+  PTW_INITIATED: 'ptw_initiated', 
+  PTW_SUBMITTED: 'ptw_submitted', 
+  PTW_AUTHORIZED: 'ptw_authorized',
   PTW_CANCELLED: 'ptw_cancelled'
 };
 
@@ -26,9 +28,11 @@ export const TASK_STATUS = {
 export const TASK_STATUS_LABELS = {
   [TASK_STATUS.ACTIVE]: 'Active',
   [TASK_STATUS.IN_PROGRESS]: 'In Progress',
+  [TASK_STATUS.PAUSED]: 'Paused', // Added new label
   [TASK_STATUS.COMPLETED]: 'Completed',
   [TASK_STATUS.PTW_INITIATED]: 'PTW Initiated',
   [TASK_STATUS.PTW_SUBMITTED]: 'PTW Submitted',
+  [TASK_STATUS.PTW_AUTHORIZED]: 'PTW Authorized',
   [TASK_STATUS.PTW_CANCELLED]: 'PTW Cancelled'
 };
 
@@ -44,20 +48,30 @@ export const TASK_STATUS_COLORS = {
     text: 'text-blue-800',
     border: 'border-blue-500'
   },
+  [TASK_STATUS.PAUSED]: { // Added new color set for Paused
+    bg: 'bg-gray-200',
+    text: 'text-gray-800',
+    border: 'border-gray-400'
+  },
   [TASK_STATUS.COMPLETED]: {
     bg: 'bg-green-100',
     text: 'text-green-800',
     border: 'border-green-500'
   },
   [TASK_STATUS.PTW_INITIATED]: {
-    bg: 'bg-orange-100', // Changed color for clarity
-    text: 'text-orange-800', // Changed color for clarity
-    border: 'border-orange-500' // Changed color for clarity
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    border: 'border-orange-500'
   },
   [TASK_STATUS.PTW_SUBMITTED]: {
     bg: 'bg-purple-100',
     text: 'text-purple-800',
     border: 'border-purple-500'
+  },
+  [TASK_STATUS.PTW_AUTHORIZED]: {
+    bg: 'bg-cyan-100',
+    text: 'text-cyan-800',
+    border: 'border-cyan-500'
   },
   [TASK_STATUS.PTW_CANCELLED]: {
     bg: 'bg-red-100',

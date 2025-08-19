@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
-const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, preselectedSite, prefilledDetails }) => {
+const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, taskNumber, preselectedSite, prefilledDetails }) => {
   const [taskDetails, setTaskDetails] = useState({
     worker_id: worker.user_id,
-    task_type: permitNumber ? 'ptw' : 'general',
+    task_type: 'general',
     status: 'active',
     site_id: preselectedSite?.site_id || '',
     site_name: preselectedSite?.site_name || '',
@@ -12,7 +12,8 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     task_description: prefilledDetails?.task_description || '',
     implementation_date: '',
     implementation_time: '',
-    permit_number: permitNumber || ''
+    task_id: taskNumber || '',
+    permit_number: prefilledDetails?.permit_number || '',
   });
   
   useEffect(() => {
@@ -28,6 +29,7 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
         ...prevDetails,
         assigned_area: prefilledDetails.assigned_area,
         task_description: prefilledDetails.task_description,
+        permit_number: prefilledDetails.permit_number,
       }));
     }
   }, [preselectedSite, prefilledDetails]);
@@ -45,7 +47,7 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     try {
       await api.createTask({
         ...taskDetails,
-        supervisor_id: 'SUP001',
+        supervisor_id: 'SUP001', 
         site_name: siteName
       });
       onSuccess();
@@ -59,8 +61,11 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
       <div className="relative p-8 bg-white w-full max-w-lg rounded-lg shadow-xl">
         <h3 className="text-2xl font-bold mb-4">Assign Task to {worker.name}</h3>
+        {taskDetails.task_id && (
+          <p className="mb-2 text-lg">Task ID: <span className="font-semibold">{taskDetails.task_id}</span></p>
+        )}
         {taskDetails.permit_number && (
-          <p className="mb-4 text-lg">Permit No: <span className="font-semibold">{taskDetails.permit_number}</span></p>
+          <p className="mb-4 text-lg">Permit Number: <span className="font-semibold">{taskDetails.permit_number}</span></p>
         )}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">

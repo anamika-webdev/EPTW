@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 
-const PTWFormModal = ({ worker, sites, onClose, onAssignTask, permitNumber }) => {
+const PTWFormModal = ({ worker, sites, onClose, onAssignTask, requestNumber }) => {
   const [taskDetails, setTaskDetails] = useState({
     task_type: 'ptw',
     worker_id: worker.user_id,
@@ -13,7 +13,7 @@ const PTWFormModal = ({ worker, sites, onClose, onAssignTask, permitNumber }) =>
     time_issued: '',
     valid_until_date: '',
     valid_until_time: '',
-    permit_number: permitNumber || '', // Use the auto-generated number
+    task_id: requestNumber || '', // Use the auto-generated number
     status: 'ptw_initiated'
   });
 
