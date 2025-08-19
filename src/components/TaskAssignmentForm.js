@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
-const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, preselectedSite }) => {
+const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, preselectedSite, prefilledDetails }) => {
   const [taskDetails, setTaskDetails] = useState({
     worker_id: worker.user_id,
     task_type: permitNumber ? 'ptw' : 'general',
     status: 'active',
-    // Pre-populate site_id and site_name if available
     site_id: preselectedSite?.site_id || '',
     site_name: preselectedSite?.site_name || '',
-    assigned_area: '',
-    task_description: '',
+    assigned_area: prefilledDetails?.assigned_area || '', // Corrected line
+    task_description: prefilledDetails?.task_description || '', // Corrected line
     implementation_date: '',
     implementation_time: '',
     permit_number: permitNumber || ''
   });
   
-  // This useEffect ensures the site_id is updated when preselectedSite changes
   useEffect(() => {
     if (preselectedSite) {
       setTaskDetails(prevDetails => ({
@@ -25,7 +23,15 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
         site_name: preselectedSite.site_name,
       }));
     }
-  }, [preselectedSite]);
+    // New useEffect to handle prefilled details
+    if (prefilledDetails) {
+      setTaskDetails(prevDetails => ({
+        ...prevDetails,
+        assigned_area: prefilledDetails.assigned_area,
+        task_description: prefilledDetails.task_description,
+      }));
+    }
+  }, [preselectedSite, prefilledDetails]); // Added prefilledDetails to dependency array
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -34,7 +40,6 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Find the selected site_name based on the site_id
     const selectedSite = sites.find(site => site.site_id === taskDetails.site_id);
     const siteName = selectedSite ? selectedSite.site_name : '';
 
@@ -43,7 +48,7 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
         ...taskDetails,
         supervisor_id: 'SUP001',
         permit_number: permitNumber,
-        site_name: siteName // Ensure site_name is included in the payload
+        site_name: siteName
       });
       onSuccess();
     } catch (error) {
