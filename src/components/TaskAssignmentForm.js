@@ -8,8 +8,8 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     status: 'active',
     site_id: preselectedSite?.site_id || '',
     site_name: preselectedSite?.site_name || '',
-    assigned_area: prefilledDetails?.assigned_area || '', // Corrected line
-    task_description: prefilledDetails?.task_description || '', // Corrected line
+    assigned_area: prefilledDetails?.assigned_area || '',
+    task_description: prefilledDetails?.task_description || '',
     implementation_date: '',
     implementation_time: '',
     permit_number: permitNumber || ''
@@ -23,7 +23,6 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
         site_name: preselectedSite.site_name,
       }));
     }
-    // New useEffect to handle prefilled details
     if (prefilledDetails) {
       setTaskDetails(prevDetails => ({
         ...prevDetails,
@@ -31,7 +30,7 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
         task_description: prefilledDetails.task_description,
       }));
     }
-  }, [preselectedSite, prefilledDetails]); // Added prefilledDetails to dependency array
+  }, [preselectedSite, prefilledDetails]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -40,14 +39,13 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const selectedSite = sites.find(site => site.site_id === taskDetails.site_id);
+    const selectedSite = sites.find(site => site.site_id.toString() === taskDetails.site_id.toString());
     const siteName = selectedSite ? selectedSite.site_name : '';
 
     try {
       await api.createTask({
         ...taskDetails,
         supervisor_id: 'SUP001',
-        permit_number: permitNumber,
         site_name: siteName
       });
       onSuccess();
@@ -135,4 +133,5 @@ const TaskAssignmentForm = ({ worker, sites, onClose, onSuccess, permitNumber, p
     </div>
   );
 };
+
 export default TaskAssignmentForm;

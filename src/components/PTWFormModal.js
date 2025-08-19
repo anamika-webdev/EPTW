@@ -20,7 +20,7 @@ const PTWFormModal = ({ worker, sites, onClose, onAssignTask, permitNumber }) =>
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'site_id') {
-      const selectedSite = sites.find(site => site.site_id === value);
+      const selectedSite = sites.find(site => site.site_id.toString() === value.toString());
       setTaskDetails(prevDetails => ({
         ...prevDetails,
         site_id: value,
@@ -51,16 +51,7 @@ const PTWFormModal = ({ worker, sites, onClose, onAssignTask, permitNumber }) =>
       <div className="relative p-8 bg-white w-full max-w-lg rounded-lg shadow-xl">
         <h3 className="text-2xl font-bold mb-4">Initiate Permit to Work for {worker.name}</h3>
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Permit Number</label>
-            <input
-              type="text"
-              name="permit_number"
-              value={taskDetails.permit_number}
-              disabled
-              className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm sm:text-sm"
-            />
-          </div>
+          {/* Permit number is no longer displayed on initiation */}
           <div className="mb-4">
             <label htmlFor="site_id" className="block text-sm font-medium text-gray-700">Site</label>
             <select
