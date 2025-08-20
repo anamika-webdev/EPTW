@@ -1,24 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getNotifications } from '../services/api';
 
-const NotificationPanel = ({ notifications, onClose }) => {
+const NotificationPanel = () => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const fetchedNotifications = await getNotifications();
+        setNotifications(fetchedNotifications);
+      } catch (err) {
+        setError('Failed to fetch notifications');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div>Loading notifications...</div>;
+  if (error) return <div>{error}</div>;
+
   return (
-    <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-20">
-      <div className="p-4 border-b flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Notifications</h3>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-800">&times;</button>
-      </div>
-      <div className="max-h-96 overflow-y-auto">
+    <div className="bg-white p-4 rounded-lg shadow">
+      <h2 className="text-xl font-semibold mb-2">Notifications</h2>
+      <ul>
         {notifications.length > 0 ? (
-          notifications.map(notification => (
-            <div key={notification.id} className={`p-4 border-b ${!notification.is_read ? 'bg-blue-50' : ''}`}>
-              <p className="text-sm text-gray-800">{notification.message}</p>
-              <p className="text-xs text-gray-500 mt-1">{new Date(notification.created_at).toLocaleString()}</p>
-            </div>
+          notifications.map((notification) => (
+            <li key={notification.id} className="border-b py-2">
+              <p className="font-semibold">{notification.message}</p>
+              <p className="text-sm text-gray-500">
+                {new Date(notification.timestamp).toLocaleString()}
+              </p>
+            </li>
           ))
         ) : (
-          <p className="text-center text-gray-500 py-6">No new notifications.</p>
+          <p>No new notifications</p>
         )}
-      </div>
+      </ul>
     </div>
   );
 };
