@@ -100,6 +100,20 @@ class ApiService {
     });
   }
 
+
+   forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: { email }
+    });
+  }
+
+  resetPassword(token, password) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: { token, password }
+    });
+  }
   updateSite(id, data) {
     return this.request(`/sites/${id}`, {
       method: 'PUT',

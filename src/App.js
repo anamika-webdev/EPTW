@@ -1,9 +1,11 @@
+// anamika-webdev/eptw/EPTW-2abc7ffedffb41e2c4abec468f553629a3b64530/src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
-import Login from './components/Login';
+// This line is corrected to use PascalCase 'Login'
+import Login from './components/Login'; 
 import AdminDashboard from './pages/AdminDashboard';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import WorkerDashboard from './pages/WorkerDashboard';

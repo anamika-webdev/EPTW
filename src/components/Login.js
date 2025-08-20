@@ -1,5 +1,6 @@
+// anamika-webdev/eptw/EPTW-2abc7ffedffb41e2c4abec468f553629a3b64530/src/components/Login.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -82,9 +83,14 @@ const Login = () => {
           </div>
           
           <div>
-            <label className="block text-gray-700 text-sm font-semibold mb-2">
-              Password
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="block text-gray-700 text-sm font-semibold mb-2">
+                Password
+              </label>
+              <Link to="/forgot-password" a className="text-sm text-blue-600 hover:underline">
+                Forgot Password?
+              </Link>
+            </div>
             <input
               type="password"
               name="password"
