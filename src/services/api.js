@@ -163,6 +163,14 @@ class ApiService {
     });
   }
 
+  // FIXED: Added submitPtwForm to match the function call in WorkerDashboard.js
+  submitPtwForm(taskId, formData) {
+    return this.request(`/tasks/${taskId}/ptw-form`, {
+      method: 'PUT',
+      body: formData,
+    });
+  }
+
   // Method for PTW form submission
   updatePtwForm(taskId, formData) {
     return this.request(`/tasks/${taskId}/ptw-form`, {
